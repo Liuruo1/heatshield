@@ -242,7 +242,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     label: const Text(
                       'Nearest Safe Zone',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

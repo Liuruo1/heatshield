@@ -13,7 +13,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
   // Simulated list of devices
   final List<Map<String, dynamic>> _devices = [
     {
-      'name': 'Apple Watch Ultra',
+      'name': 'Samsung Galaxy Watch',
       'id': 'AA:BB:CC:11:22:33',
       'isConnected': true,
       'battery': 85,
