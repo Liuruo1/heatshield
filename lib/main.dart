@@ -29,7 +29,6 @@ class HeatShieldApp extends StatelessWidget {
           themeMode: themeProvider.themeMode,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-            useMaterial3: true,
             fontFamily: 'Roboto', // Modern standard font
           ),
           darkTheme: ThemeData.dark().copyWith(
@@ -37,7 +36,6 @@ class HeatShieldApp extends StatelessWidget {
               seedColor: Colors.teal,
               brightness: Brightness.dark,
             ),
-            useMaterial3: true,
           ),
           home: const MainDashboard(),
         );

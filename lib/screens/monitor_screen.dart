@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:heatshield/services/geofencing_service.dart';
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -11,8 +13,8 @@ class MonitorScreen extends StatefulWidget {
 }
 
 class _MonitorScreenState extends State<MonitorScreen> {
-  final Completer<GoogleMapController> _controller = Completer();
-  bool _isLocationPermissionGranted = false;
+  final MapController _mapController = MapController();
+  final GeofenceService _geofenceService = GeofenceService();
 
   @override
   void initState() {
@@ -21,53 +23,79 @@ class _MonitorScreenState extends State<MonitorScreen> {
   }
 
   Future<void> _requestLocationPermission() async {
-    final status = await Permission.locationWhenInUse.request();
+    final status = await Permission.locationAlways.request();
     if (status.isGranted) {
       if (mounted) {
-        setState(() {
-          _isLocationPermissionGranted = true;
-        });
+        _geofenceService.initialize(
+          onAlert: () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'WARNING: You are entering a Heat Stress Zone!',
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          },
+        );
       }
     }
   }
 
+  @override
+  void dispose() {
+    _geofenceService.dispose();
+    super.dispose();
+  }
+
   // Placeholder location for the Holy Mosque, Makkah
-  static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(21.4225, 39.8262),
-    zoom: 17.5,
-  );
+  static const LatLng _initialPosition = LatLng(21.4225, 39.8262);
 
   // Mock Shaded Zones (Green)
-  final Set<Polygon> _polygons = {
+  final List<Polygon> _polygons = [
     Polygon(
-      polygonId: const PolygonId('shaded_zone_1'),
       points: const [
         LatLng(21.4227, 39.8258),
         LatLng(21.4227, 39.8265),
         LatLng(21.4222, 39.8265),
         LatLng(21.4222, 39.8258),
       ],
-      strokeWidth: 2,
-      strokeColor: Colors.teal.withValues(alpha: 0.8),
-      fillColor: Colors.teal.withValues(alpha: 0.3),
+      borderStrokeWidth: 2,
+      borderColor: Colors.teal.withValues(alpha: 0.8),
+      color: Colors.teal.withValues(alpha: 0.3),
     ),
     // Mock Unshaded Zones (Red)
     Polygon(
-      polygonId: const PolygonId('unshaded_zone_1'),
       points: const [
         LatLng(21.4230, 39.8266),
         LatLng(21.4230, 39.8275),
         LatLng(21.4220, 39.8275),
         LatLng(21.4220, 39.8266),
       ],
-      strokeWidth: 2,
-      strokeColor: Colors.redAccent.withValues(alpha: 0.8),
-      fillColor: Colors.redAccent.withValues(alpha: 0.3),
+      borderStrokeWidth: 2,
+      borderColor: Colors.redAccent.withValues(alpha: 0.8),
+      color: Colors.redAccent.withValues(alpha: 0.3),
     ),
-  };
+    // New Unshaded Zone
+    Polygon(
+      points: const [
+        LatLng(21.42294, 39.82456),
+        LatLng(21.42409, 39.82163),
+        LatLng(21.42350, 39.82128),
+        LatLng(21.42141, 39.82274),
+      ],
+      borderStrokeWidth: 2,
+      borderColor: Colors.redAccent.withValues(alpha: 0.8),
+      color: Colors.redAccent.withValues(alpha: 0.3),
+    ),
+  ];
 
   // Mock state variables
   bool _showHeatWarning = true;
+  bool _isDashboardExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -80,17 +108,33 @@ class _MonitorScreenState extends State<MonitorScreen> {
       ),
       body: Stack(
         children: [
-          // 1. Google Map Background
-          GoogleMap(
-            mapType: MapType.normal,
-            initialCameraPosition: _initialPosition,
-            polygons: _polygons,
-            myLocationEnabled: _isLocationPermissionGranted,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            onMapCreated: (GoogleMapController controller) {
-              _controller.complete(controller);
-            },
+          // 1. Flutter Map Background
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _initialPosition,
+              initialZoom: 17.5,
+              onTap: (tapPosition, point) {
+                // Print the latitude and longitude when the user taps the map
+                final lat = point.latitude.toStringAsFixed(5);
+                final lng = point.longitude.toStringAsFixed(5);
+                debugPrint('Tapped: $lat, $lng');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Coordinates: $lat, $lng'),
+                    duration: const Duration(seconds: 4),
+                    action: SnackBarAction(label: 'OK', onPressed: () {}),
+                  ),
+                );
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.heatshield',
+              ),
+              PolygonLayer(polygons: _polygons),
+            ],
           ),
 
           // 2. High-Priority Heat Warning Alert
@@ -193,145 +237,171 @@ class _MonitorScreenState extends State<MonitorScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Row: Temp & Exposure Timer
+          // Header with Toggle
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildMetricItem(
-                context,
-                icon: Icons.thermostat_rounded,
-                iconColor: Colors.orange,
-                label: 'Current Temp',
-                value: '48°C',
-                valueColor: Colors.red.shade800,
+              const Text(
+                'Status Dashboard',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              _buildMetricItem(
-                context,
-                icon: Icons.timer_outlined,
-                iconColor: Colors.blueGrey,
-                label: 'Sun Exposure',
-                value: '14 min',
-                valueColor:
-                    Theme.of(context).textTheme.bodyLarge?.color ??
-                    Colors.black87,
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  _isDashboardExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_up,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isDashboardExpanded = !_isDashboardExpanded;
+                  });
+                },
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          if (_isDashboardExpanded) const SizedBox(height: 16),
+          if (_isDashboardExpanded)
+            // Top Row: Temp & Exposure Timer
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildMetricItem(
+                  context,
+                  icon: Icons.thermostat_rounded,
+                  iconColor: Colors.orange,
+                  label: 'Current Temp',
+                  value: '48°C',
+                  valueColor: Colors.red.shade800,
+                ),
+                _buildMetricItem(
+                  context,
+                  icon: Icons.timer_outlined,
+                  iconColor: Colors.blueGrey,
+                  label: 'Sun Exposure',
+                  value: '14 min',
+                  valueColor:
+                      Theme.of(context).textTheme.bodyLarge?.color ??
+                      Colors.black87,
+                ),
+              ],
+            ),
+          if (_isDashboardExpanded) const SizedBox(height: 24),
 
-          // Risk Level Meter
-          _buildRiskMeter(context),
-          const SizedBox(height: 24),
+          if (_isDashboardExpanded) // Risk Level Meter
+            _buildRiskMeter(context),
+          if (_isDashboardExpanded) const SizedBox(height: 24),
 
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: SizedBox(
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Routing to nearest shaded zone...'),
+          if (_isDashboardExpanded) // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Routing to nearest shaded zone...'),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.directions_walk, size: 24),
+                      label: const Text(
+                        'Nearest Safe Zone',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.directions_walk, size: 24),
-                    label: const Text(
-                      'Nearest Safe Zone',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade600,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal.shade600,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 4,
                       ),
-                      elevation: 4,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 1,
-                child: SizedBox(
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            icon: const Icon(
-                              Icons.emergency,
-                              color: Colors.red,
-                              size: 48,
-                            ),
-                            title: const Text(
-                              'Emergency SOS',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            content: const Text(
-                              'Are you sure you want to call Emergency Services?',
-                              textAlign: TextAlign.center,
-                            ),
-                            actionsAlignment: MainAxisAlignment.center,
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text(
-                                  'Cancel',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 1,
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      backgroundColor: Colors.red,
-                                      content: Text(
-                                        'Calling Emergency Services...',
+                              icon: const Icon(
+                                Icons.emergency,
+                                color: Colors.red,
+                                size: 48,
+                              ),
+                              title: const Text(
+                                'Emergency SOS',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              content: const Text(
+                                'Are you sure you want to call Emergency Services?',
+                                textAlign: TextAlign.center,
+                              ),
+                              actionsAlignment: MainAxisAlignment.center,
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        backgroundColor: Colors.red,
+                                        content: Text(
+                                          'Calling Emergency Services...',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red.shade600,
-                                  foregroundColor: Colors.white,
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red.shade600,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Call Now'),
                                 ),
-                                child: const Text('Call Now'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                    icon: const Icon(Icons.emergency),
-                    label: const Text('SOS'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                      icon: const Icon(Icons.emergency),
+                      label: const Text('SOS'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 4,
                       ),
-                      elevation: 4,
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

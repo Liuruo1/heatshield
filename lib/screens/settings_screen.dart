@@ -51,7 +51,7 @@ class SettingsScreen extends StatelessWidget {
               onChanged: (value) {
                 themeProvider.toggleTheme(value);
               },
-              activeColor: Colors.teal,
+              activeThumbColor: Colors.teal,
             ),
           ),
           const SizedBox(height: 24),
@@ -86,7 +86,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (value) {
                     // Placeholder for future logic
                   },
-                  activeColor: Colors.teal,
+                  activeThumbColor: Colors.teal,
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
@@ -102,7 +102,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (value) {
                     // Placeholder for future logic
                   },
-                  activeColor: Colors.teal,
+                  activeThumbColor: Colors.teal,
                 ),
               ],
             ),
