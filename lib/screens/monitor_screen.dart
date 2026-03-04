@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:heatshield/services/geofencing_service.dart';
 
 class MonitorScreen extends StatefulWidget {
@@ -16,16 +17,37 @@ class _MonitorScreenState extends State<MonitorScreen> {
   final MapController _mapController = MapController();
   final GeofenceService _geofenceService = GeofenceService();
 
+  LatLng? _currentLocation =
+      _initialPosition; // Initialize so the button is always visible
+  StreamSubscription<Position>? _positionStreamSubscription;
+  bool _isInShadedArea = false;
+  bool _isFollowingLocation = true;
+
   @override
   void initState() {
     super.initState();
+    _checkInitialLocation();
     _requestLocationPermission();
+  }
+
+  void _checkInitialLocation() {
+    if (_currentLocation != null) {
+      bool inShaded = false;
+      for (int i = 0; i < 2; i++) {
+        if (_isPointInPolygon(_currentLocation!, _polygons[i].points)) {
+          inShaded = true;
+          break;
+        }
+      }
+      _isInShadedArea = inShaded;
+    }
   }
 
   Future<void> _requestLocationPermission() async {
     final status = await Permission.locationAlways.request();
     if (status.isGranted) {
       if (mounted) {
+        _startLocationTracking();
         _geofenceService.initialize(
           onAlert: () {
             if (mounted) {
@@ -45,14 +67,59 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
+  void _startLocationTracking() {
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 5,
+          ),
+        ).listen((Position position) {
+          if (!mounted) return;
+          final newLoc = LatLng(position.latitude, position.longitude);
+
+          // Check if inside any shaded area
+          bool inShaded = false;
+          // We know the first two polygons are shaded (teal)
+          for (int i = 0; i < 2; i++) {
+            if (_isPointInPolygon(newLoc, _polygons[i].points)) {
+              inShaded = true;
+              break;
+            }
+          }
+
+          setState(() {
+            _currentLocation = newLoc;
+            _isInShadedArea = inShaded;
+          });
+        });
+  }
+
+  bool _isPointInPolygon(LatLng point, List<LatLng> polygon) {
+    bool isInside = false;
+    for (int i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      if (((polygon[i].latitude > point.latitude) !=
+              (polygon[j].latitude > point.latitude)) &&
+          (point.longitude <
+              (polygon[j].longitude - polygon[i].longitude) *
+                      (point.latitude - polygon[i].latitude) /
+                      (polygon[j].latitude - polygon[i].latitude) +
+                  polygon[i].longitude)) {
+        isInside = !isInside;
+      }
+    }
+    return isInside;
+  }
+
   @override
   void dispose() {
+    _positionStreamSubscription?.cancel();
     _geofenceService.dispose();
     super.dispose();
   }
 
   // Placeholder location for the Holy Mosque, Makkah
-  static const LatLng _initialPosition = LatLng(21.4225, 39.8262);
+  static const LatLng _initialPosition = LatLng(21.42168, 39.82480);
 
   // Mock Shaded Zones (Green)
   final List<Polygon> _polygons = [
@@ -62,6 +129,22 @@ class _MonitorScreenState extends State<MonitorScreen> {
         LatLng(21.4227, 39.8265),
         LatLng(21.4222, 39.8265),
         LatLng(21.4222, 39.8258),
+      ],
+      borderStrokeWidth: 2,
+      borderColor: Colors.teal.withValues(alpha: 0.8),
+      color: Colors.teal.withValues(alpha: 0.3),
+    ),
+    // New Shaded Zone (Green) from user taps
+    Polygon(
+      points: const [
+        LatLng(21.42223, 39.82397),
+        LatLng(21.42175, 39.82387),
+        LatLng(21.42087, 39.82449),
+        LatLng(21.42078, 39.82499),
+        LatLng(21.42115, 39.82559),
+        LatLng(21.42191, 39.82580),
+        LatLng(21.42248, 39.82542),
+        LatLng(21.42259, 39.82455),
       ],
       borderStrokeWidth: 2,
       borderColor: Colors.teal.withValues(alpha: 0.8),
@@ -114,6 +197,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
             options: MapOptions(
               initialCenter: _initialPosition,
               initialZoom: 17.5,
+              onPositionChanged: (position, hasGesture) {
+                if (hasGesture && _isFollowingLocation) {
+                  setState(() {
+                    _isFollowingLocation = false;
+                  });
+                }
+              },
               onTap: (tapPosition, point) {
                 // Print the latitude and longitude when the user taps the map
                 final lat = point.latitude.toStringAsFixed(5);
@@ -134,6 +224,27 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 userAgentPackageName: 'com.example.heatshield',
               ),
               PolygonLayer(polygons: _polygons),
+              if (_currentLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _currentLocation!,
+                      width: 40,
+                      height: 40,
+                      child: const Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(Icons.circle, color: Colors.white, size: 24),
+                          Icon(
+                            Icons.circle,
+                            color: Colors.blueAccent,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
 
@@ -153,6 +264,34 @@ class _MonitorScreenState extends State<MonitorScreen> {
             right: 16,
             child: _buildStatusDashboard(context),
           ),
+
+          // 4. Center on User Location FAB
+          if (_currentLocation != null)
+            Positioned(
+              right: 16,
+              top: _showHeatWarning
+                  ? 120
+                  : 16, // Place below the heat warning if it's showing
+              child: FloatingActionButton(
+                heroTag: 'center_map',
+                backgroundColor: Theme.of(context).cardColor,
+                foregroundColor: _isFollowingLocation
+                    ? Colors.blue
+                    : Colors.teal.shade600,
+                elevation: 4,
+                onPressed: () {
+                  setState(() {
+                    _isFollowingLocation = true;
+                    _mapController.move(_currentLocation!, 17.5);
+                  });
+                },
+                child: Icon(
+                  _isFollowingLocation
+                      ? Icons.my_location
+                      : Icons.location_searching,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -245,6 +384,43 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 'Status Dashboard',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
+              if (_currentLocation != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isInShadedArea
+                        ? Colors.green.shade100
+                        : Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isInShadedArea
+                            ? Icons.check_circle
+                            : Icons.warning_amber_rounded,
+                        color: _isInShadedArea
+                            ? Colors.green.shade800
+                            : Colors.red.shade800,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isInShadedArea ? 'Shaded' : 'Unshaded',
+                        style: TextStyle(
+                          color: _isInShadedArea
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
