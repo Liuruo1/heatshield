@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -22,12 +24,45 @@ class _MonitorScreenState extends State<MonitorScreen> {
   StreamSubscription<Position>? _positionStreamSubscription;
   bool _isInShadedArea = false;
   bool _isFollowingLocation = true;
+  String _currentTemp = '--°C';
+  int? _currentTempValue;
+  Timer? _weatherTimer;
+  Timer? _exposureTimer;
+  int _exposureSeconds = 0;
 
   @override
   void initState() {
     super.initState();
     _checkInitialLocation();
     _requestLocationPermission();
+    _fetchWeather();
+    // Update weather every 15 minutes
+    _weatherTimer = Timer.periodic(
+      const Duration(minutes: 15),
+      (_) => _fetchWeather(),
+    );
+  }
+
+  Future<void> _fetchWeather() async {
+    try {
+      // Coordinates for Makkah
+      final url = Uri.parse(
+        'https://api.open-meteo.com/v1/forecast?latitude=21.4225&longitude=39.8262&current=temperature_2m',
+      );
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final temp = data['current']['temperature_2m'];
+        if (mounted) {
+          setState(() {
+            _currentTempValue = temp.round();
+            _currentTemp = '${_currentTempValue}°C';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching weather: $e');
+    }
   }
 
   void _checkInitialLocation() {
@@ -40,7 +75,65 @@ class _MonitorScreenState extends State<MonitorScreen> {
         }
       }
       _isInShadedArea = inShaded;
+      _updateExposureTimer(inShaded);
     }
+  }
+
+  void _updateExposureTimer(bool inShaded) {
+    if (inShaded) {
+      _exposureTimer?.cancel();
+      _exposureTimer = null;
+      _exposureSeconds = 0;
+    } else {
+      if (_exposureTimer == null) {
+        _exposureTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (mounted) {
+            setState(() {
+              _exposureSeconds++;
+              // Over 15 minutes of unshaded exposure or high risk triggers warning.
+              if (_exposureSeconds > 15 * 60 || _calculateRiskRatio() >= 0.8) {
+                _showHeatWarning = true;
+              }
+            });
+          }
+        });
+      }
+    }
+  }
+
+  String get _formattedExposure {
+    if (_exposureSeconds == 0) return '0 min';
+    final minutes = _exposureSeconds ~/ 60;
+    final seconds = _exposureSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds}s';
+    } else {
+      return '${seconds}s';
+    }
+  }
+
+  double _calculateRiskRatio() {
+    double tempRisk = 0.0;
+    if (_currentTempValue != null) {
+      // Temp between 30 and 50 maps to 0.0 -> 0.5
+      tempRisk = ((_currentTempValue! - 30) / 20).clamp(0.0, 0.5);
+    }
+    // Exposure from 0 to 15 mins (900s) maps to 0.0 -> 0.5
+    double expRisk = (_exposureSeconds / 900).clamp(0.0, 0.5);
+    
+    return (tempRisk + expRisk).clamp(0.0, 1.0);
+  }
+
+  String _getRiskLevelText(double ratio) {
+    if (ratio < 0.33) return 'LOW';
+    if (ratio < 0.66) return 'MODERATE';
+    return 'CRITICAL';
+  }
+
+  Color _getRiskColor(double ratio) {
+    if (ratio < 0.33) return Colors.green;
+    if (ratio < 0.66) return Colors.amber.shade700;
+    return Colors.red;
   }
 
   Future<void> _requestLocationPermission() async {
@@ -54,7 +147,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'WARNING: You are entering a Heat Stress Zone!',
+                    'WARNING: You are entering a Heat Stress Zone!!',
                   ),
                   backgroundColor: Colors.red,
                   duration: Duration(seconds: 3),
@@ -91,6 +184,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
           setState(() {
             _currentLocation = newLoc;
             _isInShadedArea = inShaded;
+            _updateExposureTimer(inShaded);
           });
         });
   }
@@ -115,11 +209,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
   void dispose() {
     _positionStreamSubscription?.cancel();
     _geofenceService.dispose();
+    _weatherTimer?.cancel();
+    _exposureTimer?.cancel();
     super.dispose();
   }
 
   // Placeholder location for the Holy Mosque, Makkah
-  static const LatLng _initialPosition = LatLng(21.42168, 39.82480);
+  static const LatLng _initialPosition = LatLng(21.42260, 39.82312);
 
   // Mock Shaded Zones (Green)
   final List<Polygon> _polygons = [
@@ -177,7 +273,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   ];
 
   // Mock state variables
-  bool _showHeatWarning = true;
+  bool _showHeatWarning = false;
   bool _isDashboardExpanded = true;
 
   @override
@@ -448,7 +544,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   icon: Icons.thermostat_rounded,
                   iconColor: Colors.orange,
                   label: 'Current Temp',
-                  value: '48°C',
+                  value: _currentTemp,
                   valueColor: Colors.red.shade800,
                 ),
                 _buildMetricItem(
@@ -456,7 +552,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   icon: Icons.timer_outlined,
                   iconColor: Colors.blueGrey,
                   label: 'Sun Exposure',
-                  value: '14 min',
+                  value: _formattedExposure,
                   valueColor:
                       Theme.of(context).textTheme.bodyLarge?.color ??
                       Colors.black87,
@@ -637,6 +733,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   Widget _buildRiskMeter(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double riskRatio = _calculateRiskRatio();
+    final String riskText = _getRiskLevelText(riskRatio);
+    final Color riskColor = _getRiskColor(riskRatio);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,10 +751,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 fontSize: 14,
               ),
             ),
-            const Text(
-              'CRITICAL',
+            Text(
+              riskText,
               style: TextStyle(
-                color: Colors.red,
+                color: riskColor,
                 fontWeight: FontWeight.w900,
                 fontSize: 14,
                 letterSpacing: 1,
@@ -703,15 +802,18 @@ class _MonitorScreenState extends State<MonitorScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.only(
-            left: 200.0,
-          ), // Mocking indicator position
-          child: Icon(
-            Icons.arrow_drop_up,
-            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-            size: 24,
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final indicatorPosition = riskRatio * (constraints.maxWidth - 24);
+            return Padding(
+              padding: EdgeInsets.only(left: indicatorPosition),
+              child: Icon(
+                Icons.arrow_drop_up,
+                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                size: 24,
+              ),
+            );
+          },
         ),
       ],
     );
