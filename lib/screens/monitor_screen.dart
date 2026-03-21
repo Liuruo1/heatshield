@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import 'package:heatshield/services/geofencing_service.dart';
+import 'package:heatshield/services/history_service.dart';
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -29,6 +32,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _weatherTimer;
   Timer? _exposureTimer;
   int _exposureSeconds = 0;
+  int? _maxTempDuringExposure;
+  double _maxRiskDuringExposure = 0.0;
 
   @override
   void initState() {
@@ -56,7 +61,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
         if (mounted) {
           setState(() {
             _currentTempValue = temp.round();
-            _currentTemp = '${_currentTempValue}°C';
+            _currentTemp = '$_currentTempValue°C';
           });
         }
       }
@@ -81,23 +86,42 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   void _updateExposureTimer(bool inShaded) {
     if (inShaded) {
+      if (_exposureSeconds > 5) {
+        Provider.of<HistoryService>(context, listen: false).logIncident(
+          durationSeconds: _exposureSeconds,
+          maxTemp: _maxTempDuringExposure,
+          maxRiskRatio: _maxRiskDuringExposure,
+        );
+      }
       _exposureTimer?.cancel();
       _exposureTimer = null;
       _exposureSeconds = 0;
+      _maxTempDuringExposure = null;
+      _maxRiskDuringExposure = 0.0;
     } else {
-      if (_exposureTimer == null) {
-        _exposureTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          if (mounted) {
-            setState(() {
-              _exposureSeconds++;
-              // Over 15 minutes of unshaded exposure or high risk triggers warning.
-              if (_exposureSeconds > 15 * 60 || _calculateRiskRatio() >= 0.8) {
-                _showHeatWarning = true;
-              }
-            });
-          }
-        });
-      }
+      _exposureTimer ??= Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted) {
+          setState(() {
+            _exposureSeconds++;
+            double currentRisk = _calculateRiskRatio();
+
+            if (_currentTempValue != null) {
+              _maxTempDuringExposure = _maxTempDuringExposure == null
+                  ? _currentTempValue
+                  : math.max(_maxTempDuringExposure!, _currentTempValue!);
+            }
+            _maxRiskDuringExposure = math.max(
+              _maxRiskDuringExposure,
+              currentRisk,
+            );
+
+            // Over 15 minutes of unshaded exposure or high risk triggers warning.
+            if (_exposureSeconds > 15 * 60 || currentRisk >= 0.8) {
+              _showHeatWarning = true;
+            }
+          });
+        }
+      });
     }
   }
 
@@ -120,7 +144,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
     // Exposure from 0 to 15 mins (900s) maps to 0.0 -> 0.5
     double expRisk = (_exposureSeconds / 900).clamp(0.0, 0.5);
-    
+
     return (tempRisk + expRisk).clamp(0.0, 1.0);
   }
 
@@ -215,7 +239,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   }
 
   // Placeholder location for the Holy Mosque, Makkah
-  static const LatLng _initialPosition = LatLng(21.42260, 39.82312);
+  static const LatLng _initialPosition = LatLng(21.42171, 39.82482);
 
   // Mock Shaded Zones (Green)
   final List<Polygon> _polygons = [
@@ -809,7 +833,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
               padding: EdgeInsets.only(left: indicatorPosition),
               child: Icon(
                 Icons.arrow_drop_up,
-                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                color:
+                    Theme.of(context).textTheme.bodyLarge?.color ??
+                    Colors.black,
                 size: 24,
               ),
             );

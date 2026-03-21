@@ -4,13 +4,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heatshield/theme_provider.dart';
 import 'main_dashboard.dart';
 
+import 'package:heatshield/services/history_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(prefs),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => HistoryService(prefs)),
+      ],
       child: const HeatShieldApp(),
     ),
   );
