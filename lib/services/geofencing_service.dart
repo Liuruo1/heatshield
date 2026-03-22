@@ -5,16 +5,16 @@ import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class GeofenceService {
-  final List<LatLng> heatZones = [
-    // Mock Heat Zones (matching map unshaded zones)
-    const LatLng(21.4225, 39.8270), // Center of the first mock unshaded zone
-    const LatLng(21.42298, 39.82255), // Center of the new unshaded zone
-  ];
+  List<LatLng> _heatZones = [];
 
   final double alertDistance = 100.0; // Trigger alert if < 100m
   StreamSubscription<Position>? _positionStreamSubscription;
 
   VoidCallback? _onAlert;
+
+  void setHeatZones(List<LatLng> zones) {
+    _heatZones = List<LatLng>.from(zones);
+  }
 
   Future<void> initialize({VoidCallback? onAlert}) async {
     _onAlert = onAlert;
@@ -49,7 +49,7 @@ class GeofenceService {
   }
 
   void _checkGeofences(Position position) {
-    for (var zone in heatZones) {
+    for (var zone in _heatZones) {
       double distanceInMeters = Geolocator.distanceBetween(
         position.latitude,
         position.longitude,

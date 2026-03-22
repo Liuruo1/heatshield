@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:heatshield/services/geofencing_service.dart';
 import 'package:heatshield/services/history_service.dart';
+import 'package:heatshield/services/zoneDB_service.dart';
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -21,6 +22,7 @@ class MonitorScreen extends StatefulWidget {
 class _MonitorScreenState extends State<MonitorScreen> {
   final MapController _mapController = MapController();
   final GeofenceService _geofenceService = GeofenceService();
+  final ZoneDbService _zoneDbService = ZoneDbService();
 
   LatLng? _currentLocation =
       _initialPosition; // Initialize so the button is always visible
@@ -32,14 +34,27 @@ class _MonitorScreenState extends State<MonitorScreen> {
   int? _currentTempValue;
   Timer? _weatherTimer;
   Timer? _exposureTimer;
+  Timer? _zoneRefreshTimer;
+  StreamSubscription<void>? _zoneUpdatesSubscription;
   int _exposureSeconds = 0;
   int? _maxTempDuringExposure;
   double _maxRiskDuringExposure = 0.0;
+  bool _zonesReady = false;
+  List<ZonePolygon> _zones = [];
+  List<ZonePolygon> _activeZones = [];
+  List<Polygon> _polygons = [];
 
   @override
   void initState() {
     super.initState();
-    _checkInitialLocation();
+    _zoneUpdatesSubscription = ZoneDbService.updates.listen((_) {
+      _loadZones();
+    });
+    _zoneRefreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _applyActiveZones(),
+    );
+    _loadZones();
     _requestLocationPermission();
     _fetchWeather();
     // Update weather every 15 minutes
@@ -47,6 +62,46 @@ class _MonitorScreenState extends State<MonitorScreen> {
       const Duration(minutes: 15),
       (_) => _fetchWeather(),
     );
+  }
+
+  Future<void> _loadZones() async {
+    await _zoneDbService.ensureSeedData();
+    final zones = await _zoneDbService.getZones();
+
+    if (!mounted) return;
+
+    setState(() {
+      _zones = zones;
+      _zonesReady = true;
+    });
+
+    _applyActiveZones();
+  }
+
+  void _applyActiveZones() {
+    if (!mounted) return;
+
+    final now = DateTime.now();
+    final activeZones = _zones
+        .where((zone) => zone.isActiveAt(now))
+        .toList(growable: false);
+    final activePolygons = activeZones
+        .map((zone) => zone.toPolygon())
+        .toList(growable: false);
+
+    setState(() {
+      _activeZones = activeZones;
+      _polygons = activePolygons;
+    });
+
+    _geofenceService.setHeatZones(
+      activeZones
+          .where((zone) => zone.type == ZoneType.unshaded)
+          .map((zone) => zone.centroid)
+          .toList(),
+    );
+
+    _checkInitialLocation();
   }
 
   Future<void> _fetchWeather() async {
@@ -72,10 +127,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
   }
 
   void _checkInitialLocation() {
-    if (_currentLocation != null) {
+    if (_currentLocation != null && _zonesReady) {
       bool inShaded = false;
-      for (int i = 0; i < 2; i++) {
-        if (_isPointInPolygon(_currentLocation!, _polygons[i].points)) {
+      for (final zone in _activeZones.where((z) => z.type == ZoneType.shaded)) {
+        if (_isPointInPolygon(_currentLocation!, zone.points)) {
           inShaded = true;
           break;
         }
@@ -198,9 +253,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
           // Check if inside any shaded area
           bool inShaded = false;
-          // We know the first two polygons are shaded (teal)
-          for (int i = 0; i < 2; i++) {
-            if (_isPointInPolygon(newLoc, _polygons[i].points)) {
+          for (final zone in _activeZones.where(
+            (z) => z.type == ZoneType.shaded,
+          )) {
+            if (_isPointInPolygon(newLoc, zone.points)) {
               inShaded = true;
               break;
             }
@@ -238,6 +294,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
+    _zoneUpdatesSubscription?.cancel();
+    _zoneRefreshTimer?.cancel();
     _geofenceService.dispose();
     _weatherTimer?.cancel();
     _exposureTimer?.cancel();
@@ -246,61 +304,6 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   // Placeholder location for the Holy Mosque, Makkah
   static const LatLng _initialPosition = LatLng(21.42171, 39.82482);
-
-  // Mock Shaded Zones (Green)
-  final List<Polygon> _polygons = [
-    Polygon(
-      points: const [
-        LatLng(21.4227, 39.8258),
-        LatLng(21.4227, 39.8265),
-        LatLng(21.4222, 39.8265),
-        LatLng(21.4222, 39.8258),
-      ],
-      borderStrokeWidth: 2,
-      borderColor: Colors.teal.withValues(alpha: 0.8),
-      color: Colors.teal.withValues(alpha: 0.3),
-    ),
-    // New Shaded Zone (Green) from user taps
-    Polygon(
-      points: const [
-        LatLng(21.42223, 39.82397),
-        LatLng(21.42175, 39.82387),
-        LatLng(21.42087, 39.82449),
-        LatLng(21.42078, 39.82499),
-        LatLng(21.42115, 39.82559),
-        LatLng(21.42191, 39.82580),
-        LatLng(21.42248, 39.82542),
-        LatLng(21.42259, 39.82455),
-      ],
-      borderStrokeWidth: 2,
-      borderColor: Colors.teal.withValues(alpha: 0.8),
-      color: Colors.teal.withValues(alpha: 0.3),
-    ),
-    // Mock Unshaded Zones (Red)
-    Polygon(
-      points: const [
-        LatLng(21.4230, 39.8266),
-        LatLng(21.4230, 39.8275),
-        LatLng(21.4220, 39.8275),
-        LatLng(21.4220, 39.8266),
-      ],
-      borderStrokeWidth: 2,
-      borderColor: Colors.redAccent.withValues(alpha: 0.8),
-      color: Colors.redAccent.withValues(alpha: 0.3),
-    ),
-    // New Unshaded Zone
-    Polygon(
-      points: const [
-        LatLng(21.42294, 39.82456),
-        LatLng(21.42409, 39.82163),
-        LatLng(21.42350, 39.82128),
-        LatLng(21.42141, 39.82274),
-      ],
-      borderStrokeWidth: 2,
-      borderColor: Colors.redAccent.withValues(alpha: 0.8),
-      color: Colors.redAccent.withValues(alpha: 0.3),
-    ),
-  ];
 
   // Mock state variables
   bool _showHeatWarning = false;
@@ -333,8 +336,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
               onTap: (tapPosition, point) {
                 // Update current fake location
                 bool inShaded = false;
-                for (int i = 0; i < 2; i++) {
-                  if (_isPointInPolygon(point, _polygons[i].points)) {
+                for (final zone in _activeZones.where(
+                  (z) => z.type == ZoneType.shaded,
+                )) {
+                  if (_isPointInPolygon(point, zone.points)) {
                     inShaded = true;
                     break;
                   }
@@ -639,7 +644,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
                         if (_isInShadedArea) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('You are already in a safe shaded zone.'),
+                              content: Text(
+                                'You are already in a safe shaded zone.',
+                              ),
                             ),
                           );
                           return;
@@ -649,10 +656,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
                         double minDistance = double.infinity;
                         final distance = const Distance();
 
-                        // Shaded zones are the first two polygons
-                        for (int i = 0; i < 2; i++) {
-                          for (var point in _polygons[i].points) {
-                            final dist = distance.distance(_currentLocation!, point);
+                        for (final zone in _activeZones.where(
+                          (z) => z.type == ZoneType.shaded,
+                        )) {
+                          for (var point in zone.points) {
+                            final dist = distance.distance(
+                              _currentLocation!,
+                              point,
+                            );
                             if (dist < minDistance) {
                               minDistance = dist;
                               nearestPoint = point;
@@ -665,12 +676,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
                             _routePoints = [_currentLocation!, nearestPoint!];
                             _isFollowingLocation = false;
                           });
-                          
+
                           _mapController.move(nearestPoint, 17.5);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Routing to nearest shaded zone...'),
+                              content: Text(
+                                'Routing to nearest shaded zone...',
+                              ),
                             ),
                           );
                         }
