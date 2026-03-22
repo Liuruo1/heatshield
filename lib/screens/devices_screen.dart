@@ -8,9 +8,11 @@ class DevicesScreen extends StatefulWidget {
 }
 
 class _DevicesScreenState extends State<DevicesScreen> {
+  // --- State Variables ---
+  /// Tracks if the Bluetooth search animation and delay are active
   bool _isScanning = false;
 
-  // Simulated list of devices
+  /// Simulated list of paired/available Bluetooth devices for the UI demo
   final List<Map<String, dynamic>> _devices = [
     {
       'name': 'Samsung Galaxy Watch',
@@ -90,6 +92,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
+  /// Builds an informational UI card explaining the benefits of connecting a wearable
+  /// device for heat stroke prevention (e.g. haptic feedback in noisy environments).
   Widget _buildRationaleCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -141,6 +145,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
+  /// Builds a list tile representing a single Bluetooth device.
+  /// Displays connection status, battery level, and a button to toggle connection.
   Widget _buildDeviceTile(Map<String, dynamic> device) {
     final bool isConnected = device['isConnected'];
     final isDark = Theme.of(context).brightness == Brightness.dark;

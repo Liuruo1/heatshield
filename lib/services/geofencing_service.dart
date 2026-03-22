@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+/// A service class that monitors the device's location in the background
+/// and triggers alerts when the user approaches defined high-risk heat zones.
 class GeofenceService {
   List<LatLng> _heatZones = [];
 
@@ -16,6 +18,8 @@ class GeofenceService {
     _heatZones = List<LatLng>.from(zones);
   }
 
+  /// Requests location permissions, checks if location services are enabled,
+  /// and starts continuous background monitoring if everything is approved.
   Future<void> initialize({VoidCallback? onAlert}) async {
     _onAlert = onAlert;
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -48,6 +52,8 @@ class GeofenceService {
         );
   }
 
+  /// Compares the user's current [position] against all active dangerous (unshaded)
+  /// heat zones. Triggers the alert callback if the user is within [alertDistance].
   void _checkGeofences(Position position) {
     for (var zone in _heatZones) {
       double distanceInMeters = Geolocator.distanceBetween(

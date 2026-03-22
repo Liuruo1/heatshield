@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:heatshield/services/history_service.dart';
 
+/// Screen that displays the user's past heat exposure incidents.
+/// It reads from [HistoryService] and shows overall summaries and a scrollable list of events.
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
+  /// Formats an integer amount of seconds into a readable string (e.g., "15m 30s").
   String _formatDuration(int seconds) {
     if (seconds == 0) return '0s';
     final m = seconds ~/ 60;
@@ -13,6 +16,7 @@ class HistoryScreen extends StatelessWidget {
     return '${s}s';
   }
 
+  /// Formats a [DateTime] object into a readable date and time string.
   String _formatDate(DateTime date) {
     // Simple formatting: MM/DD/YYYY HH:MM
     return '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year} '
@@ -255,6 +259,8 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
+  /// Builds a small rectangular card used in the top summary row
+  /// (shows total exposures, duration, or average risk).
   Widget _buildSummaryCard(
     BuildContext context, {
     required String title,
@@ -296,6 +302,8 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
+  /// Builds a pill-shaped badge with an icon and text, used to display quick
+  /// stats (like duration or max temp) inside an incident list tile.
   Widget _buildBadge({required IconData icon, required String text, required Color color}) {
     return Row(
       mainAxisSize: MainAxisSize.min,

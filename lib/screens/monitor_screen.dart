@@ -24,6 +24,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   final GeofenceService _geofenceService = GeofenceService();
   final ZoneDbService _zoneDbService = ZoneDbService();
 
+  // --- State Variables ---
   LatLng? _currentLocation =
       _initialPosition; // Initialize so the button is always visible
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -64,6 +65,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     );
   }
 
+  /// Loads heat zones from the local database and ensures initial seed data is present.
   Future<void> _loadZones() async {
     await _zoneDbService.ensureSeedData();
     final zones = await _zoneDbService.getZones();
@@ -78,6 +80,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _applyActiveZones();
   }
 
+  /// Filters the loaded zones based on current time (finds active zones)
+  /// and updates the map polygons and geofenced heat zones.
   void _applyActiveZones() {
     if (!mounted) return;
 
@@ -104,6 +108,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _checkInitialLocation();
   }
 
+  /// Fetches real-time weather temperature for Makkah using Open-Meteo API.
   Future<void> _fetchWeather() async {
     try {
       // Coordinates for Makkah
@@ -126,6 +131,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
+  /// Evaluates whether the user's initial location is within any active shaded zone
+  /// and updates the exposure tracker accordingly.
   void _checkInitialLocation() {
     if (_currentLocation != null && _zonesReady) {
       bool inShaded = false;
@@ -140,6 +147,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
+  /// Manages the timer that tracks how long the user has been exposed to the sun.
+  /// If the user enters a shaded zone, logs the incident and resets the timer.
   void _updateExposureTimer(bool inShaded) {
     if (inShaded) {
       if (_exposureSeconds > 5) {
@@ -192,6 +201,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
+  /// Calculates a continuous heat risk ratio (0.0 to 1.0) based on current temperature
+  /// and duration of continuous sun exposure.
   double _calculateRiskRatio() {
     double tempRisk = 0.0;
     if (_currentTempValue != null) {
@@ -216,6 +227,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     return Colors.red;
   }
 
+  /// Requests background/foreground location permissions and starts tracking if granted.
+  /// Initializes the geofencing service for zone alerts.
   Future<void> _requestLocationPermission() async {
     final status = await Permission.locationAlways.request();
     if (status.isGranted) {
@@ -240,6 +253,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
+  /// Listens to the device's location stream to update the user's position on the map
+  /// and determine if they have moved into a shaded or unshaded area.
   void _startLocationTracking() {
     _positionStreamSubscription =
         Geolocator.getPositionStream(
@@ -275,6 +290,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
         });
   }
 
+  /// Standard Ray-Casting algorithm to determine if a given coordinate point
+  /// lies within a defined complex polygon.
   bool _isPointInPolygon(LatLng point, List<LatLng> polygon) {
     bool isInside = false;
     for (int i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -461,6 +478,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   // --- UI Components ---
 
+  /// Builds a critical warning UI popup shown when exposure limits are exceeded.
   Widget _buildHeatWarningAlert() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -519,6 +537,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     );
   }
 
+  /// Builds the collapsible bottom dashboard displaying real-time metrics, risk meter, and quick actions.
   Widget _buildStatusDashboard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// A data model representing a single continuous period of sun exposure.
+/// Stores duration, date, peak temperature, and calculated maximum risk ratio.
 class ExposureIncident {
   final String id;
   final DateTime date;
@@ -38,6 +40,8 @@ class ExposureIncident {
   }
 }
 
+/// A state management service that handles saving, retrieving, and logging
+/// heat exposure incidents using local device storage ([SharedPreferences]).
 class HistoryService extends ChangeNotifier {
   static const String _storageKey = 'heatshield_history';
   final SharedPreferences _prefs;
@@ -85,6 +89,8 @@ class HistoryService extends ChangeNotifier {
     }
   }
 
+  /// Records a new heat exposure incident, adds it to the top of the history list,
+  /// notifies UI listeners to rebuild, and persists the updated list to local storage.
   Future<void> logIncident({
     required int durationSeconds,
     required int? maxTemp,

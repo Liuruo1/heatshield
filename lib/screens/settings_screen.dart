@@ -26,6 +26,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadPreferences();
   }
 
+  /// Retrieves shared preferences (e.g., notification and haptic toggles)
+  /// and updates the local state.
   Future<void> _loadPreferences() async {
     _prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -35,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadZones();
   }
 
+  /// Fetches the user's custom and built-in heat zones from the local database.
   Future<void> _loadZones() async {
     setState(() {
       _isLoadingZones = true;
@@ -51,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  /// Removes a specified zone from the database and refreshes the list in the UI.
   Future<void> _deleteZone(ZonePolygon zone) async {
     if (zone.id == null) return;
 
@@ -62,6 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).showSnackBar(SnackBar(content: Text('Deleted ${zone.name}')));
   }
 
+  /// Opens a dialog to create a new custom heat zone (shaded or unshaded).
+  /// Allows the user to specify zone coordinates, name, and active times.
   Future<void> _showAddZoneDialog() async {
     final nameController = TextEditingController();
     final pointsController = TextEditingController();
@@ -235,6 +241,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).showSnackBar(const SnackBar(content: Text('Zone added.')));
   }
 
+  /// Parses a multi-line string of latitude/longitude coordinates into a list of [LatLng] points.
   List<LatLng> _parsePoints(String raw) {
     final points = <LatLng>[];
     final lines = raw.split('\n');
@@ -286,6 +293,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Builds the UI section for managing active heat zones, including showing
+  /// existing zones and providing a button to add new ones.
   Widget _buildZoneManagementCard() {
     if (_isLoadingZones) {
       return const Center(

@@ -8,6 +8,8 @@ import 'package:sqflite/sqflite.dart';
 
 enum ZoneType { shaded, unshaded }
 
+/// A data model representing a geographic polygon zone (either shaded or unshaded).
+/// Includes properties for map rendering, identifying central points, and active time windows.
 class ZonePolygon {
   final int? id;
   final String name;
@@ -50,6 +52,8 @@ class ZonePolygon {
     return LatLng(latAvg, lngAvg);
   }
 
+  /// Determines if this zone is currently active based on its defined time window.
+  /// Handles scenarios where the zone is active all day, or spans across midnight.
   bool isActiveAt(DateTime now) {
     final start = startMinuteOfDay;
     final end = endMinuteOfDay;
@@ -87,6 +91,8 @@ class ZonePolygon {
   }
 }
 
+/// A local database service using SQLite to persist custom and default heat zones.
+/// Allows adding, deleting, and retrieving geographic polygon data.
 class ZoneDbService {
   static const String _dbName = 'heatshield.db';
   static const int _dbVersion = 2;
@@ -152,6 +158,8 @@ class ZoneDbService {
       ''');
   }
 
+  /// Checks if the database is empty on app startup, and if so,
+  /// populates it with a set of default shaded and unshaded zones around the Holy Mosque.
   Future<void> ensureSeedData() async {
     final db = await database;
     final count =
