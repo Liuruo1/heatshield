@@ -27,6 +27,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   StreamSubscription<Position>? _positionStreamSubscription;
   bool _isInShadedArea = false;
   bool _isFollowingLocation = true;
+  List<LatLng> _routePoints = [];
   String _currentTemp = '--°C';
   int? _currentTempValue;
   Timer? _weatherTimer;
@@ -209,6 +210,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
             _currentLocation = newLoc;
             _isInShadedArea = inShaded;
             _updateExposureTimer(inShaded);
+            if (inShaded) {
+              _routePoints.clear();
+            } else if (_routePoints.isNotEmpty) {
+              _routePoints[0] = newLoc;
+            }
           });
         });
   }
@@ -325,6 +331,27 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 }
               },
               onTap: (tapPosition, point) {
+                // Update current fake location
+                bool inShaded = false;
+                for (int i = 0; i < 2; i++) {
+                  if (_isPointInPolygon(point, _polygons[i].points)) {
+                    inShaded = true;
+                    break;
+                  }
+                }
+
+                setState(() {
+                  _currentLocation = point;
+                  _isInShadedArea = inShaded;
+                  _updateExposureTimer(inShaded);
+                  _isFollowingLocation = false;
+                  if (inShaded) {
+                    _routePoints.clear();
+                  } else if (_routePoints.isNotEmpty) {
+                    _routePoints[0] = point;
+                  }
+                });
+
                 // Print the latitude and longitude when the user taps the map
                 final lat = point.latitude.toStringAsFixed(5);
                 final lng = point.longitude.toStringAsFixed(5);
@@ -344,6 +371,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 userAgentPackageName: 'com.example.heatshield',
               ),
               PolygonLayer(polygons: _polygons),
+              if (_routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      strokeWidth: 4.0,
+                      color: Colors.blueAccent,
+                    ),
+                  ],
+                ),
               if (_currentLocation != null)
                 MarkerLayer(
                   markers: [
@@ -598,11 +635,45 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Routing to nearest shaded zone...'),
-                          ),
-                        );
+                        if (_currentLocation == null) return;
+                        if (_isInShadedArea) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('You are already in a safe shaded zone.'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        LatLng? nearestPoint;
+                        double minDistance = double.infinity;
+                        final distance = const Distance();
+
+                        // Shaded zones are the first two polygons
+                        for (int i = 0; i < 2; i++) {
+                          for (var point in _polygons[i].points) {
+                            final dist = distance.distance(_currentLocation!, point);
+                            if (dist < minDistance) {
+                              minDistance = dist;
+                              nearestPoint = point;
+                            }
+                          }
+                        }
+
+                        if (nearestPoint != null) {
+                          setState(() {
+                            _routePoints = [_currentLocation!, nearestPoint!];
+                            _isFollowingLocation = false;
+                          });
+                          
+                          _mapController.move(nearestPoint, 17.5);
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Routing to nearest shaded zone...'),
+                            ),
+                          );
+                        }
                       },
                       icon: const Icon(Icons.directions_walk, size: 24),
                       label: const Text(
