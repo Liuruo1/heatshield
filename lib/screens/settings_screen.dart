@@ -1,9 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heatshield/theme_provider.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _pushNotifications = true;
+  bool _hapticFeedback = true;
+  SharedPreferences? _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _pushNotifications = _prefs?.getBool('pushNotifications') ?? true;
+      _hapticFeedback = _prefs?.getBool('hapticFeedback') ?? true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,9 +106,12 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   subtitle: const Text('Receive critical heat alerts'),
                   secondary: const Icon(Icons.notifications_active_outlined),
-                  value: true, // Example placeholder
+                  value: _pushNotifications,
                   onChanged: (value) {
-                    // Placeholder for future logic
+                    setState(() {
+                      _pushNotifications = value;
+                    });
+                    _prefs?.setBool('pushNotifications', value);
                   },
                   activeThumbColor: Colors.teal,
                 ),
@@ -98,9 +125,12 @@ class SettingsScreen extends StatelessWidget {
                     'Vibrate on wrist for nearby smartwatches',
                   ),
                   secondary: const Icon(Icons.vibration),
-                  value: true, // Example placeholder
+                  value: _hapticFeedback,
                   onChanged: (value) {
-                    // Placeholder for future logic
+                    setState(() {
+                      _hapticFeedback = value;
+                    });
+                    _prefs?.setBool('hapticFeedback', value);
                   },
                   activeThumbColor: Colors.teal,
                 ),
