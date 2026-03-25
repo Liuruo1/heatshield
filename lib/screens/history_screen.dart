@@ -37,8 +37,6 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Exposure History'),
@@ -180,11 +178,11 @@ class HistoryScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.grey.shade900 : Colors.white,
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: isDark ? Colors.black26 : Colors.black12,
+                              color: Colors.black12,
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -268,11 +266,10 @@ class HistoryScreen extends StatelessWidget {
     required IconData icon,
     required Color color,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? color.withValues(alpha: 0.1) : color.withValues(alpha: 0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),

@@ -45,6 +45,24 @@ class _MonitorScreenState extends State<MonitorScreen> {
   List<ZonePolygon> _activeZones = [];
   List<Polygon> _polygons = [];
 
+  // Alharam Zone functionality
+  bool _isInAlharam = false;
+  final List<LatLng> _alharamZonePoints = const [
+    LatLng(21.42713, 39.82618),
+    LatLng(21.42575, 39.82734),
+    LatLng(21.42517, 39.82924),
+    LatLng(21.42365, 39.82963),
+    LatLng(21.42111, 39.82782),
+    LatLng(21.42023, 39.82702),
+    LatLng(21.41996, 39.82486),
+    LatLng(21.42048, 39.82362),
+    LatLng(21.41880, 39.82317),
+    LatLng(21.41888, 39.82279),
+    LatLng(21.42043, 39.82265),
+    LatLng(21.42269, 39.82182),
+    LatLng(21.42413, 39.82161),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +161,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
         }
       }
       _isInShadedArea = inShaded;
+      _isInAlharam = _isPointInPolygon(_currentLocation!, _alharamZonePoints);
       _updateExposureTimer(inShaded);
     }
   }
@@ -280,6 +299,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
           setState(() {
             _currentLocation = newLoc;
             _isInShadedArea = inShaded;
+            _isInAlharam = _isPointInPolygon(newLoc, _alharamZonePoints);
             _updateExposureTimer(inShaded);
             if (inShaded) {
               _routePoints.clear();
@@ -334,6 +354,37 @@ class _MonitorScreenState extends State<MonitorScreen> {
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
         elevation: 2,
+        actions: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _isInAlharam ? Colors.white : Colors.white24,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isInAlharam ? Icons.mosque : Icons.location_off,
+                    color: _isInAlharam ? Colors.teal.shade700 : Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isInAlharam ? 'Inside Alharam' : 'Outside Alharam',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: _isInAlharam ? Colors.teal.shade800 : Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -365,6 +416,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 setState(() {
                   _currentLocation = point;
                   _isInShadedArea = inShaded;
+                  _isInAlharam = _isPointInPolygon(point, _alharamZonePoints);
                   _updateExposureTimer(inShaded);
                   _isFollowingLocation = false;
                   if (inShaded) {

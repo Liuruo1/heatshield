@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:heatshield/screens/devices_screen.dart';
+
 import 'package:heatshield/screens/history_screen.dart';
 import 'package:heatshield/screens/monitor_screen.dart';
 import 'package:heatshield/screens/settings_screen.dart';
@@ -16,7 +16,6 @@ class _MainDashboardState extends State<MainDashboard> {
 
   final List<Widget> _screens = const [
     MonitorScreen(),
-    DevicesScreen(),
     HistoryScreen(),
     SettingsScreen(),
   ];
@@ -29,8 +28,6 @@ class _MainDashboardState extends State<MainDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
@@ -40,10 +37,8 @@ class _MainDashboardState extends State<MainDashboard> {
         currentIndex: _selectedIndex,
         type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
-        selectedItemColor: isDark ? Colors.tealAccent : Colors.teal.shade700,
-        unselectedItemColor: isDark
-            ? Colors.grey.shade400
-            : Colors.grey.shade600,
+        selectedItemColor: Colors.teal.shade700,
+        unselectedItemColor: Colors.grey.shade600,
         backgroundColor: Theme.of(context).cardColor,
         elevation: 8,
         items: const [
@@ -51,11 +46,6 @@ class _MainDashboardState extends State<MainDashboard> {
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
             label: 'Monitor',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.watch_outlined),
-            activeIcon: Icon(Icons.watch),
-            label: 'Devices',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history_outlined),
