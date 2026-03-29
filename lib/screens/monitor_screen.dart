@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:heatshield/services/geofencing_service.dart';
 import 'package:heatshield/services/history_service.dart';
 import 'package:heatshield/services/zoneDB_service.dart';
+import 'package:heatshield/services/watch_companion_service.dart';
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -36,6 +37,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _weatherTimer;
   Timer? _exposureTimer;
   Timer? _zoneRefreshTimer;
+  Timer? _watchSyncTimer;
   StreamSubscription<void>? _zoneUpdatesSubscription;
   int _exposureSeconds = 0;
   int? _maxTempDuringExposure;
@@ -55,6 +57,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
       const Duration(minutes: 1),
       (_) => _applyActiveZones(),
     );
+    // Sync heat status to watch every second
+    _watchSyncTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _syncHeatStatusToWatch(),
+    );
     _loadZones();
     _requestLocationPermission();
     _fetchWeather();
@@ -62,6 +69,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _weatherTimer = Timer.periodic(
       const Duration(minutes: 15),
       (_) => _fetchWeather(),
+    );
+  }
+
+  /// Syncs the current heat status to the watch via the companion service.
+  Future<void> _syncHeatStatusToWatch() async {
+    await WatchCompanionService.sendHeatStatus(
+      temp: _currentTempValue ?? 0,
+      exposure: _exposureSeconds,
+      risk: _calculateRiskRatio(),
+      shaded: _isInShadedArea,
     );
   }
 
@@ -314,6 +331,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _zoneUpdatesSubscription?.cancel();
     _zoneRefreshTimer?.cancel();
     _geofenceService.dispose();
+    _watchSyncTimer?.cancel();
     _weatherTimer?.cancel();
     _exposureTimer?.cancel();
     super.dispose();
