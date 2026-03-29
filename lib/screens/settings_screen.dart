@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heatshield/services/zoneDB_service.dart';
-import 'package:heatshield/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -357,7 +355,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -368,42 +365,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              'Appearance',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.teal,
-              ),
-            ),
-          ),
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: SwitchListTile(
-              title: const Text(
-                'Dark Mode',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: const Text('Toggle between dark and light themes'),
-              secondary: Icon(
-                themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                color: themeProvider.isDarkMode
-                    ? Colors.indigoAccent
-                    : Colors.orange,
-              ),
-              value: themeProvider.isDarkMode,
-              onChanged: (value) {
-                themeProvider.toggleTheme(value);
-              },
-              activeThumbColor: Colors.teal,
-            ),
-          ),
-          const SizedBox(height: 24),
           const Padding(
             padding: EdgeInsets.only(bottom: 8.0),
             child: Text(
