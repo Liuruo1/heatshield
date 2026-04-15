@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import 'package:heatshield/services/backend_api_service.dart';
 
 enum ZoneType { shaded, unshaded }
 
@@ -175,6 +176,35 @@ class ZoneDbService {
     await replaceAllZones(_defaultZones);
   }
 
+  Future<void> syncFromBackend() async {
+    try {
+      final backendZones = await BackendApiService.fetchZones();
+      final zones = backendZones
+          .where((zone) => zone.points.length >= 3)
+          .map(
+            (zone) => ZonePolygon(
+              id: zone.id,
+              name: zone.name,
+              type: zone.type.toLowerCase() == ZoneType.shaded.name
+                  ? ZoneType.shaded
+                  : ZoneType.unshaded,
+              fillAlpha: zone.fillAlpha,
+              borderAlpha: zone.borderAlpha,
+              startMinuteOfDay: zone.startMinuteOfDay,
+              endMinuteOfDay: zone.endMinuteOfDay,
+              points: zone.points,
+            ),
+          )
+          .toList(growable: false);
+
+      if (zones.isNotEmpty) {
+        await replaceAllZones(zones, emitUpdate: false);
+      }
+    } catch (e) {
+      debugPrint('Backend zone sync skipped: $e');
+    }
+  }
+
   Future<List<ZonePolygon>> getZones() async {
     final db = await database;
     final zoneRows = await db.query(_zonesTable, orderBy: 'id ASC');
@@ -198,6 +228,10 @@ class ZoneDbService {
           )
           .toList();
 
+      if (points.length < 3) {
+        continue;
+      }
+
       zones.add(
         ZonePolygon(
           id: zoneId,
@@ -220,7 +254,10 @@ class ZoneDbService {
     return zones.where((z) => z.type == type).map((z) => z.centroid).toList();
   }
 
-  Future<void> replaceAllZones(List<ZonePolygon> zones) async {
+  Future<void> replaceAllZones(
+    List<ZonePolygon> zones, {
+    bool emitUpdate = true,
+  }) async {
     final db = await database;
 
     await db.transaction((txn) async {
@@ -249,7 +286,9 @@ class ZoneDbService {
       }
     });
 
-    _updatesController.add(null);
+    if (emitUpdate) {
+      _updatesController.add(null);
+    }
   }
 
   Future<int> addZone(ZonePolygon zone) async {
@@ -278,6 +317,21 @@ class ZoneDbService {
     });
 
     _updatesController.add(null);
+
+    try {
+      await BackendApiService.createZone(
+        name: zone.name,
+        type: zone.type.name,
+        points: zone.points,
+        fillAlpha: zone.fillAlpha,
+        borderAlpha: zone.borderAlpha,
+        startMinuteOfDay: zone.startMinuteOfDay,
+        endMinuteOfDay: zone.endMinuteOfDay,
+      );
+    } catch (e) {
+      debugPrint('Backend zone create skipped: $e');
+    }
+
     return id;
   }
 
@@ -288,6 +342,12 @@ class ZoneDbService {
       await txn.delete(_zonesTable, where: 'id = ?', whereArgs: [zoneId]);
     });
     _updatesController.add(null);
+
+    try {
+      await BackendApiService.deleteZone(zoneId);
+    } catch (e) {
+      debugPrint('Backend zone delete skipped: $e');
+    }
   }
 
   ZoneType _zoneTypeFromString(String value) {

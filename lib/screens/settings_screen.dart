@@ -42,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     await _zoneDbService.ensureSeedData();
+    await _zoneDbService.syncFromBackend();
     final zones = await _zoneDbService.getZones();
 
     if (!mounted) return;

@@ -1,0 +1,153 @@
+[
+    {
+        "name": "Shaded Zone 1",
+        "type": "shaded",
+        "fill_alpha": 0.3,
+        "border_alpha": 0.8,
+        "start_minute_of_day": null,
+        "end_minute_of_day": null,
+        "temp_delta_c": -4.0,
+        "points": [
+            {
+                "lat": 21.4227,
+                "lng": 39.8258
+            },
+            {
+                "lat": 21.4227,
+                "lng": 39.8265
+            },
+            {
+                "lat": 21.4222,
+                "lng": 39.8265
+            },
+            {
+                "lat": 21.4222,
+                "lng": 39.8258
+            }
+        ]
+    },
+    {
+        "name": "Shaded Zone 2",
+        "type": "shaded",
+        "fill_alpha": 0.3,
+        "border_alpha": 0.8,
+        "start_minute_of_day": null,
+        "end_minute_of_day": null,
+        "temp_delta_c": -4.0,
+        "points": [
+            {
+                "lat": 21.42223,
+                "lng": 39.82397
+            },
+            {
+                "lat": 21.42175,
+                "lng": 39.82387
+            },
+            {
+                "lat": 21.42087,
+                "lng": 39.82449
+            },
+            {
+                "lat": 21.42078,
+                "lng": 39.82499
+            },
+            {
+                "lat": 21.42115,
+                "lng": 39.82559
+            },
+            {
+                "lat": 21.42191,
+                "lng": 39.82580
+            },
+            {
+                "lat": 21.42248,
+                "lng": 39.82542
+            },
+            {
+                "lat": 21.42259,
+                "lng": 39.82455
+            }
+        ]
+    },
+    {
+        "name": "Unshaded Zone 1",
+        "type": "unshaded",
+        "fill_alpha": 0.3,
+        "border_alpha": 0.8,
+        "start_minute_of_day": null,
+        "end_minute_of_day": null,
+        "temp_delta_c": 2.0,
+        "points": [
+            {
+                "lat": 21.4230,
+                "lng": 39.8266
+            },
+            {
+                "lat": 21.4230,
+                "lng": 39.8275
+            },
+            {
+                "lat": 21.4220,
+                "lng": 39.8275
+            },
+            {
+                "lat": 21.4220,
+                "lng": 39.8266
+            }
+        ]
+    },
+    {
+        "name": "Unshaded Zone 2",
+        "type": "unshaded",
+        "fill_alpha": 0.3,
+        "border_alpha": 0.8,
+        "start_minute_of_day": null,
+        "end_minute_of_day": null,
+        "temp_delta_c": 2.0,
+        "points": [
+            {
+                "lat": 21.42294,
+                "lng": 39.82456
+            },
+            {
+                "lat": 21.42409,
+                "lng": 39.82163
+            },
+            {
+                "lat": 21.42350,
+                "lng": 39.82128
+            },
+            {
+                "lat": 21.42141,
+                "lng": 39.82274
+            }
+        ]
+    },
+    {
+        "name": "SHAD Zone 6",
+        "type": "unshaded",
+        "fill_alpha": 0.3,
+        "border_alpha": 0.8,
+        "start_minute_of_day": null,
+        "end_minute_of_day": null,
+        "temp_delta_c": 2.0,
+        "points": [
+            {
+                "lat": 21.90294,
+                "lng": 39.82456
+            },
+            {
+                "lat": 21.84409,
+                "lng": 39.82163
+            },
+            {
+                "lat": 21.13350,
+                "lng": 39.82128
+            },
+            {
+                "lat": 21.43141,
+                "lng": 39.13274
+            }
+        ]
+    }
+]

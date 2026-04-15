@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
+import 'package:heatshield/services/backend_api_service.dart';
 import 'package:heatshield/services/geofencing_service.dart';
 import 'package:heatshield/services/history_service.dart';
 import 'package:heatshield/services/zoneDB_service.dart';
@@ -35,6 +34,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   String _currentTemp = '--°C';
   int? _currentTempValue;
   Timer? _weatherTimer;
+  Timer? _thresholdTimer;
   Timer? _exposureTimer;
   Timer? _zoneRefreshTimer;
   Timer? _watchSyncTimer;
@@ -43,9 +43,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
   int? _maxTempDuringExposure;
   double _maxRiskDuringExposure = 0.0;
   bool _zonesReady = false;
+  int _safeExposureSeconds = 15 * 60;
   List<ZonePolygon> _zones = [];
   List<ZonePolygon> _activeZones = [];
   List<Polygon> _polygons = [];
+  static const String _adaptiveUserId = 'default';
 
   // Alharam Zone functionality
   bool _isInAlharam = false;
@@ -83,6 +85,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _loadZones();
     _requestLocationPermission();
     _fetchWeather();
+    _refreshAdaptiveThreshold();
+    _thresholdTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _refreshAdaptiveThreshold(),
+    );
     // Update weather every 15 minutes
     _weatherTimer = Timer.periodic(
       const Duration(minutes: 15),
@@ -97,12 +104,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
       exposure: _exposureSeconds,
       risk: _calculateRiskRatio(),
       shaded: _isInShadedArea,
+      safeExposureSeconds: _safeExposureSeconds,
     );
   }
 
   /// Loads heat zones from the local database and ensures initial seed data is present.
   Future<void> _loadZones() async {
     await _zoneDbService.ensureSeedData();
+    await _zoneDbService.syncFromBackend();
     final zones = await _zoneDbService.getZones();
 
     if (!mounted) return;
@@ -143,26 +152,41 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _checkInitialLocation();
   }
 
-  /// Fetches real-time weather temperature for Makkah using Open-Meteo API.
+  /// Fetches effective weather from the backend so zone deltas are applied server-side.
   Future<void> _fetchWeather() async {
     try {
-      // Coordinates for Makkah
-      final url = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=21.4225&longitude=39.8262&current=temperature_2m',
-      );
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final temp = data['current']['temperature_2m'];
-        if (mounted) {
-          setState(() {
-            _currentTempValue = temp.round();
-            _currentTemp = '$_currentTempValue°C';
-          });
-        }
-      }
+      final loc = _currentLocation ?? _initialPosition;
+      final weather = await BackendApiService.fetchEffectiveWeather(location: loc);
+      if (!mounted) return;
+
+      setState(() {
+        _currentTempValue = weather.effectiveTempC.round();
+        _currentTemp = '$_currentTempValue°C';
+      });
+      await _refreshAdaptiveThreshold();
     } catch (e) {
       debugPrint('Error fetching weather: $e');
+    }
+  }
+
+  Future<void> _refreshAdaptiveThreshold() async {
+    if (_currentTempValue == null) {
+      return;
+    }
+
+    try {
+      final threshold = await BackendApiService.fetchExposureThreshold(
+        userId: _adaptiveUserId,
+        temp: _currentTempValue!.toDouble(),
+        shaded: _isInShadedArea,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _safeExposureSeconds = threshold.safeExposureSeconds;
+      });
+    } catch (e) {
+      debugPrint('Error fetching adaptive threshold: $e');
     }
   }
 
@@ -188,10 +212,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
   void _updateExposureTimer(bool inShaded) {
     if (inShaded) {
       if (_exposureSeconds > 5) {
-        Provider.of<HistoryService>(context, listen: false).logIncident(
-          durationSeconds: _exposureSeconds,
-          maxTemp: _maxTempDuringExposure,
-          maxRiskRatio: _maxRiskDuringExposure,
+        unawaited(
+          _logExposureIncident(
+            durationSeconds: _exposureSeconds,
+            maxTemp: _maxTempDuringExposure,
+            maxRiskRatio: _maxRiskDuringExposure,
+            shaded: false,
+          ),
         );
       }
       _exposureTimer?.cancel();
@@ -216,8 +243,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
               currentRisk,
             );
 
-            // Over 15 minutes of unshaded exposure or high risk triggers warning.
-            if (_exposureSeconds > 15 * 60 || currentRisk >= 0.8) {
+            // Dynamic threshold from backend training + critical risk fallback.
+            if (_exposureSeconds > _safeExposureSeconds || currentRisk >= 0.8) {
               _showHeatWarning = true;
             }
           });
@@ -245,10 +272,36 @@ class _MonitorScreenState extends State<MonitorScreen> {
       // Temp between 30 and 50 maps to 0.0 -> 0.5
       tempRisk = ((_currentTempValue! - 30) / 20).clamp(0.0, 0.5);
     }
-    // Exposure from 0 to 15 mins (900s) maps to 0.0 -> 0.5
-    double expRisk = (_exposureSeconds / 900).clamp(0.0, 0.5);
+    // Exposure component adapts to backend-personalized threshold.
+    double expRisk = (_exposureSeconds / _safeExposureSeconds).clamp(0.0, 0.5);
 
     return (tempRisk + expRisk).clamp(0.0, 1.0);
+  }
+
+  Future<void> _logExposureIncident({
+    required int durationSeconds,
+    required int? maxTemp,
+    required double maxRiskRatio,
+    required bool shaded,
+  }) async {
+    await Provider.of<HistoryService>(context, listen: false).logIncident(
+      durationSeconds: durationSeconds,
+      maxTemp: maxTemp,
+      maxRiskRatio: maxRiskRatio,
+    );
+
+    try {
+      await BackendApiService.postIncident(
+        userId: _adaptiveUserId,
+        durationSeconds: durationSeconds,
+        maxTemp: maxTemp,
+        maxRiskRatio: maxRiskRatio,
+        shaded: shaded,
+      );
+      await _refreshAdaptiveThreshold();
+    } catch (e) {
+      debugPrint('Error uploading incident: $e');
+    }
   }
 
   String _getRiskLevelText(double ratio) {
@@ -330,6 +383,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Standard Ray-Casting algorithm to determine if a given coordinate point
   /// lies within a defined complex polygon.
   bool _isPointInPolygon(LatLng point, List<LatLng> polygon) {
+    if (polygon.length < 3) {
+      return false;
+    }
+
     bool isInside = false;
     for (int i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
       if (((polygon[i].latitude > point.latitude) !=
@@ -353,6 +410,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _geofenceService.dispose();
     _watchSyncTimer?.cancel();
     _weatherTimer?.cancel();
+    _thresholdTimer?.cancel();
     _exposureTimer?.cancel();
     super.dispose();
   }

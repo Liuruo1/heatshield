@@ -63,6 +63,7 @@ class WatchCompanionService {
     required int exposure,
     required double risk,
     required bool shaded,
+    int? safeExposureSeconds,
   }) async {
     try {
       final sent = await _channel.invokeMethod<bool>('sendHeatStatusToWatch', {
@@ -70,6 +71,7 @@ class WatchCompanionService {
         'exposure': exposure,
         'risk': risk,
         'shaded': shaded,
+        'safeExposureSeconds': safeExposureSeconds,
       });
       return sent ?? false;
     } catch (e) {
