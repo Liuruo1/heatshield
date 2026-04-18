@@ -6,6 +6,7 @@ import 'package:heatshield/services/history_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:heatshield/services/locale_provider.dart';
+import 'package:heatshield/services/server_connection_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => HistoryService(prefs)),
         ChangeNotifierProvider(create: (_) => LocaleProvider(prefs)),
       ],
+
       child: const HeatShieldApp(),
     ),
   );
@@ -33,6 +35,7 @@ class HeatShieldApp extends StatelessWidget {
       locale: Provider.of<LocaleProvider>(context).locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      scaffoldMessengerKey: ServerConnectionNotifier.scaffoldMessengerKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         fontFamily: 'Roboto', // Modern standard font
