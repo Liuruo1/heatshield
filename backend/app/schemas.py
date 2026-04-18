@@ -23,6 +23,14 @@ class ZoneBase(BaseModel):
 
 
 
+class ZoneCreate(ZoneBase):
+    pass
+
+
+class ZoneUpdate(ZoneBase):
+    pass
+
+
 class ZoneOut(ZoneBase):
     id: int
 

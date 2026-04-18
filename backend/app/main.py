@@ -4,6 +4,7 @@ from pathlib import Path
 
 import requests
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import RedirectResponse
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
@@ -63,6 +64,7 @@ def root(db: Session = Depends(get_db)):
         "service": "HeatShield API",
         "status": "running",
         "docs": "/docs",
+        "swagger_ui": "/swagger",
         "redoc": "/redoc",
         "health": "/health",
         "summary": {
@@ -72,6 +74,11 @@ def root(db: Session = Depends(get_db)):
             "latest_incident_at": latest_incident.created_at.isoformat() if latest_incident else None,
         },
     }
+
+
+@app.get("/swagger", include_in_schema=False)
+def swagger_ui_link():
+    return RedirectResponse(url="/docs", status_code=307)
 
 
 def _load_default_zones() -> list[dict]:
