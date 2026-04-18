@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:heatshield/services/backend_api_service.dart';
 import 'package:heatshield/services/geofencing_service.dart';
 import 'package:heatshield/services/history_service.dart';
+import 'package:heatshield/services/server_connection_notifier.dart';
 import 'package:heatshield/services/zoneDB_service.dart';
 import 'package:heatshield/services/watch_companion_service.dart';
 
@@ -38,6 +39,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _exposureTimer;
   Timer? _zoneRefreshTimer;
   Timer? _watchSyncTimer;
+  bool _isRefreshingServer = false;
   StreamSubscription<void>? _zoneUpdatesSubscription;
   int _exposureSeconds = 0;
   int? _maxTempDuringExposure;
@@ -70,6 +72,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   void initState() {
     super.initState();
+    ServerConnectionNotifier.setRefreshAction(_refreshServerConnection);
     _zoneUpdatesSubscription = ZoneDbService.updates.listen((_) {
       _loadZones();
     });
@@ -124,6 +127,37 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _applyActiveZones();
   }
 
+  Future<void> _refreshServerConnection() async {
+    if (_isRefreshingServer) {
+      return;
+    }
+
+    _isRefreshingServer = true;
+    try {
+      await BackendApiService.fetchZones();
+      final loc = _currentLocation ?? _initialPosition;
+      final weather = await BackendApiService.fetchEffectiveWeather(
+        location: loc,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentTempValue = weather.effectiveTempC.round();
+          _currentTemp = '$_currentTempValue°C';
+        });
+      }
+
+      await _refreshAdaptiveThreshold();
+      await _loadZones();
+      ServerConnectionNotifier.clearNoConnectionError();
+    } catch (e) {
+      debugPrint('Server refresh failed: $e');
+      rethrow;
+    } finally {
+      _isRefreshingServer = false;
+    }
+  }
+
   /// Filters the loaded zones based on current time (finds active zones)
   /// and updates the map polygons and geofenced heat zones.
   void _applyActiveZones() {
@@ -156,7 +190,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Future<void> _fetchWeather() async {
     try {
       final loc = _currentLocation ?? _initialPosition;
-      final weather = await BackendApiService.fetchEffectiveWeather(location: loc);
+      final weather = await BackendApiService.fetchEffectiveWeather(
+        location: loc,
+      );
       if (!mounted) return;
 
       setState(() {
@@ -267,6 +303,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Calculates a continuous heat risk ratio (0.0 to 1.0) based on current temperature
   /// and duration of continuous sun exposure.
   double _calculateRiskRatio() {
+    final now = DateTime.now();
+    final minuteOfDay = now.hour * 60 + now.minute;
+    double timeFactor = 0.7;
+
+    if (minuteOfDay >= 360 && minuteOfDay <= 1080) {
+      final distanceFromNoon = (minuteOfDay - 720).abs() / 360.0;
+      final middayRisk = (1.0 - distanceFromNoon).clamp(0.0, 1.0);
+      timeFactor = 0.7 + (middayRisk * 0.6);
+    }
+
     double tempRisk = 0.0;
     if (_currentTempValue != null) {
       // Temp between 30 and 50 maps to 0.0 -> 0.5
@@ -275,7 +321,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     // Exposure component adapts to backend-personalized threshold.
     double expRisk = (_exposureSeconds / _safeExposureSeconds).clamp(0.0, 0.5);
 
-    return (tempRisk + expRisk).clamp(0.0, 1.0);
+    return ((tempRisk + expRisk) * timeFactor).clamp(0.0, 1.0);
   }
 
   Future<void> _logExposureIncident({
@@ -412,6 +458,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _weatherTimer?.cancel();
     _thresholdTimer?.cancel();
     _exposureTimer?.cancel();
+    ServerConnectionNotifier.setRefreshAction(null);
     super.dispose();
   }
 
@@ -431,6 +478,19 @@ class _MonitorScreenState extends State<MonitorScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
+          IconButton(
+            tooltip: 'Refresh from server',
+            icon: const Icon(Icons.refresh),
+            onPressed: _isRefreshingServer
+                ? null
+                : () async {
+                    try {
+                      await _refreshServerConnection();
+                    } catch (e) {
+                      debugPrint('Manual refresh failed: $e');
+                    }
+                  },
+          ),
           Center(
             child: Container(
               margin: const EdgeInsets.only(right: 16),
@@ -1027,7 +1087,6 @@ class _MonitorScreenState extends State<MonitorScreen> {
           child: Row(
             children: [
               Expanded(
-                flex: 1,
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.green,
@@ -1042,7 +1101,6 @@ class _MonitorScreenState extends State<MonitorScreen> {
               Expanded(flex: 1, child: Container(color: Colors.amber)),
               const SizedBox(width: 2),
               Expanded(
-                flex: 1,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.red.shade700,

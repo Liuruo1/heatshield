@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:heatshield/services/server_connection_notifier.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
@@ -115,6 +116,19 @@ class BackendApiService {
     return headers;
   }
 
+  static Future<http.Response> _sendRequest(
+    Future<http.Response> Function() request,
+  ) async {
+    try {
+      return await request();
+    } catch (error) {
+      if (ServerConnectionNotifier.isConnectionError(error)) {
+        ServerConnectionNotifier.showNoConnectionError();
+      }
+      rethrow;
+    }
+  }
+
   static Future<EffectiveWeather> fetchEffectiveWeather({
     required LatLng location,
   }) async {
@@ -122,11 +136,14 @@ class BackendApiService {
       '$_baseUrl/v1/weather/effective?lat=${location.latitude}&lng=${location.longitude}',
     );
 
-    final response = await http
-        .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 10));
+    final response = await _sendRequest(
+      () =>
+          http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+    );
     if (response.statusCode != 200) {
-      throw Exception('Failed to fetch effective weather: ${response.statusCode}');
+      throw Exception(
+        'Failed to fetch effective weather: ${response.statusCode}',
+      );
     }
 
     final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -142,9 +159,10 @@ class BackendApiService {
       '$_baseUrl/v1/exposure-threshold?user_id=$userId&temp=$temp&shaded=$shaded',
     );
 
-    final response = await http
-        .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 10));
+    final response = await _sendRequest(
+      () =>
+          http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+    );
     if (response.statusCode != 200) {
       throw Exception('Failed to fetch threshold: ${response.statusCode}');
     }
@@ -155,9 +173,10 @@ class BackendApiService {
 
   static Future<List<BackendZone>> fetchZones() async {
     final uri = Uri.parse('$_baseUrl/v1/zones');
-    final response = await http
-        .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 10));
+    final response = await _sendRequest(
+      () =>
+          http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+    );
 
     if (response.statusCode != 200) {
       throw Exception('Failed to fetch zones: ${response.statusCode}');
@@ -193,9 +212,11 @@ class BackendApiService {
           .toList(),
     });
 
-    final response = await http
-        .post(uri, headers: _headers, body: body)
-        .timeout(const Duration(seconds: 10));
+    final response = await _sendRequest(
+      () => http
+          .post(uri, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 10)),
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to create zone: ${response.statusCode}');
@@ -204,9 +225,11 @@ class BackendApiService {
 
   static Future<void> deleteZone(int zoneId) async {
     final uri = Uri.parse('$_baseUrl/v1/zones/$zoneId');
-    final response = await http
-        .delete(uri, headers: _headers)
-        .timeout(const Duration(seconds: 10));
+    final response = await _sendRequest(
+      () => http
+          .delete(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10)),
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to delete zone: ${response.statusCode}');
@@ -229,9 +252,11 @@ class BackendApiService {
       'shaded': shaded,
     });
 
-    final response = await http
-        .post(uri, headers: _headers, body: body)
-        .timeout(const Duration(seconds: 10));
+    final response = await _sendRequest(
+      () => http
+          .post(uri, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 10)),
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to post incident: ${response.statusCode}');
