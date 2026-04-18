@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'main_dashboard.dart';import 'package:heatshield/services/history_service.dart';
+import 'main_dashboard.dart';
+import 'package:heatshield/services/history_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:heatshield/l10n/app_localizations.dart';
+import 'package:heatshield/services/locale_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +15,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => HistoryService(prefs)),
+        ChangeNotifierProvider(create: (_) => LocaleProvider(prefs)),
       ],
       child: const HeatShieldApp(),
     ),
@@ -25,6 +30,9 @@ class HeatShieldApp extends StatelessWidget {
     return MaterialApp(
       title: 'HeatShield',
       debugShowCheckedModeBanner: false,
+      locale: Provider.of<LocaleProvider>(context).locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         fontFamily: 'Roboto', // Modern standard font

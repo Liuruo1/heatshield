@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:heatshield/l10n/app_localizations.dart';
 
 import 'package:heatshield/screens/history_screen.dart';
 import 'package:heatshield/screens/monitor_screen.dart';
@@ -41,21 +42,21 @@ class _MainDashboardState extends State<MainDashboard> {
         unselectedItemColor: Colors.grey.shade600,
         backgroundColor: Theme.of(context).cardColor,
         elevation: 8,
-        items: const [
+        items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
-            label: 'Monitor',
+            label: AppLocalizations.of(context)!.dashboard,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history_outlined),
             activeIcon: Icon(Icons.history),
-            label: 'History',
+            label: AppLocalizations.of(context)!.history,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
-            label: 'Settings',
+            label: AppLocalizations.of(context)!.settings,
           ),
         ],
       ),

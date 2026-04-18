@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -445,7 +446,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HeatShield Monitor'),
+        title: Text(AppLocalizations.of(context)!.monitorTitle),
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
         elevation: 2,
@@ -468,7 +469,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _isInAlharam ? 'Inside Alharam' : 'Outside Alharam',
+                    _isInAlharam ? AppLocalizations.of(context)!.insideAlharam : AppLocalizations.of(context)!.outsideAlharam,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
@@ -725,9 +726,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Status Dashboard',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Text(
+                AppLocalizations.of(context)!.statusDashboard,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               if (_currentLocation != null)
                 Container(
@@ -754,7 +755,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _isInShadedArea ? 'Shaded' : 'Unshaded',
+                        _isInShadedArea ? AppLocalizations.of(context)!.shaded : AppLocalizations.of(context)!.unshaded,
                         style: TextStyle(
                           color: _isInShadedArea
                               ? Colors.green.shade800
@@ -792,7 +793,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   context,
                   icon: Icons.thermostat_rounded,
                   iconColor: Colors.orange,
-                  label: 'Current Temp',
+                  label: AppLocalizations.of(context)!.currentTemp,
                   value: _currentTemp,
                   valueColor: Colors.red.shade800,
                 ),
@@ -800,7 +801,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   context,
                   icon: Icons.timer_outlined,
                   iconColor: Colors.blueGrey,
-                  label: 'Sun Exposure',
+                  label: AppLocalizations.of(context)!.sunExposure,
                   value: _formattedExposure,
                   valueColor:
                       Theme.of(context).textTheme.bodyLarge?.color ??

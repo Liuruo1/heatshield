@@ -20,12 +20,7 @@ class ZoneBase(BaseModel):
     temp_delta_c: float = 0.0
 
 
-class ZoneCreate(ZoneBase):
-    pass
 
-
-class ZoneUpdate(ZoneBase):
-    pass
 
 
 class ZoneOut(ZoneBase):
