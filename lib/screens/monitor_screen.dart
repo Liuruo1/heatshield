@@ -41,6 +41,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _zoneRefreshTimer;
   Timer? _watchSyncTimer;
   bool _isRefreshingServer = false;
+  bool _debugMode = false;
   StreamSubscription<void>? _zoneUpdatesSubscription;
   int _exposureSeconds = 0;
   int? _maxTempDuringExposure;
@@ -333,15 +334,20 @@ class _MonitorScreenState extends State<MonitorScreen> {
       timeFactor = 0.7 + (middayRisk * 0.6);
     }
 
-    double tempRisk = 0.0;
-    if (_currentTempValue != null) {
-      // Temp between 30 and 50 maps to 0.0 -> 0.5
-      tempRisk = ((_currentTempValue! - 30) / 20).clamp(0.0, 0.5);
-    }
-    // Exposure component adapts to backend-personalized threshold.
-    double expRisk = (_exposureSeconds / _safeExposureSeconds).clamp(0.0, 0.5);
+    // Exposure is the primary risk driver.
+    // At safeExposureSeconds the bar hits 0.8 (alert zone), regardless of temp.
+    double expRisk = (_exposureSeconds / _safeExposureSeconds).clamp(0.0, 0.8);
 
-    return ((tempRisk + expRisk) * timeFactor).clamp(0.0, 1.0);
+    double tempBonus = 0.0;
+    if (_currentTempValue != null) {
+      // Temp 30°C → 50°C adds up to 0.2 bonus on top of exposure
+      tempBonus = ((_currentTempValue! - 30) / 20).clamp(0.0, 0.2);
+    }
+
+    // timeFactor used additively (not as multiplier) so it can't reduce risk below expRisk
+    final double timeBonus = (timeFactor - 0.7) * 0.1; // 0.0 at off-peak, +0.06 at noon
+
+    return (expRisk + tempBonus + timeBonus).clamp(0.0, 1.0);
   }
 
   Future<void> _logExposureIncident({
@@ -498,6 +504,48 @@ class _MonitorScreenState extends State<MonitorScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
+          // Debug: fast-forward exposure to trigger critical risk alerts
+          IconButton(
+            tooltip: _debugMode ? 'Turbo ON — tap to add +5 min exposure' : 'Enable Turbo Test Mode',
+            icon: Icon(
+              Icons.bolt,
+              color: _debugMode ? Colors.yellow : Colors.white54,
+            ),
+            onPressed: () {
+              if (!_debugMode) {
+                setState(() => _debugMode = true);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('⚡ Turbo mode ON — tap ⚡ to add +5 min exposure'),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                // Each subsequent tap adds 5 minutes of exposure
+                setState(() {
+                  _exposureSeconds += 300;
+                  final risk = _calculateRiskRatio();
+                  if (_currentTempValue != null) {
+                    _maxTempDuringExposure = _maxTempDuringExposure == null
+                        ? _currentTempValue
+                        : math.max(_maxTempDuringExposure!, _currentTempValue!);
+                  }
+                  _maxRiskDuringExposure = math.max(_maxRiskDuringExposure, risk);
+                  if (_exposureSeconds > _safeExposureSeconds || risk >= 0.8) {
+                    _showHeatWarning = true;
+                  }
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('⚡ +5 min — exposure: $_formattedExposure'),
+                    backgroundColor: Colors.deepOrange,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          ),
           IconButton(
             tooltip: 'Refresh from server',
             icon: const Icon(Icons.refresh),
@@ -1115,36 +1163,29 @@ class _MonitorScreenState extends State<MonitorScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Container(
-          height: 12,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          ),
-          child: Row(
+        // Dynamic bar: fill width is driven by riskRatio
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Stack(
             children: [
-              Expanded(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(6),
-                      bottomLeft: Radius.circular(6),
-                    ),
+              // Background track (green → amber → red gradient)
+              Container(
+                height: 12,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: const LinearGradient(
+                    colors: [Colors.green, Colors.amber, Colors.deepOrange],
                   ),
                 ),
               ),
-              const SizedBox(width: 2),
-              Expanded(flex: 1, child: Container(color: Colors.amber)),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade700,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(6),
-                      bottomRight: Radius.circular(6),
-                    ),
+              // Unfilled portion covers the right side in grey
+              Align(
+                alignment: Alignment.centerRight,
+                child: FractionallySizedBox(
+                  widthFactor: 1.0 - _calculateRiskRatio(),
+                  child: Container(
+                    height: 12,
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                   ),
                 ),
               ),
