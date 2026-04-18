@@ -67,6 +67,25 @@ class _MonitorScreenState extends State<MonitorScreen> {
     LatLng(21.42413, 39.82161),
   ];
 
+  // Water Points
+  final List<LatLng> _waterPoints = const [
+    LatLng(21.42237, 39.82528),
+    LatLng(21.42355, 39.82592),
+    LatLng(21.42313, 39.82712),
+    LatLng(21.42165, 39.82668),
+    LatLng(21.42034, 39.82462),
+    LatLng(21.42263, 39.82274),
+    LatLng(21.42364, 39.82338),
+    LatLng(21.42454, 39.82410),
+    LatLng(21.42526, 39.82524),
+    LatLng(21.42542, 39.82624),
+    LatLng(21.42489, 39.82685),
+    LatLng(21.42269, 39.82770),
+    LatLng(21.42407, 39.82697),
+    LatLng(21.42100, 39.82702),
+    LatLng(21.42522, 39.82802),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -552,6 +571,23 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     ),
                   ],
                 ),
+              // Water points marker layer
+              MarkerLayer(
+                markers: _waterPoints
+                    .map(
+                      (point) => Marker(
+                        point: point,
+                        width: 30,
+                        height: 30,
+                        child: const Icon(
+                          Icons.water_drop,
+                          color: Colors.blue,
+                          size: 30,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
             ],
           ),
 

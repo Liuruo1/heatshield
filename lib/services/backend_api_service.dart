@@ -98,10 +98,13 @@ class BackendZone {
 class BackendApiService {
   BackendApiService._();
 
-  static const String _baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
-  );
+  static final String _baseUrl = () {
+    const url = String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'http://10.0.2.2:8000',
+    );
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }();
   static const String _apiKey = String.fromEnvironment(
     'API_KEY',
     defaultValue: '',
