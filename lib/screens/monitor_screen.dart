@@ -41,6 +41,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _zoneRefreshTimer;
   Timer? _watchSyncTimer;
   bool _isRefreshingServer = false;
+
+  // Emergency escalation tracking
+  int? _criticalRiskStartExposureSeconds; // exposure counter snapshot when critical began
+  LatLng? _criticalRiskStartLocation;     // location snapshot when critical began
+  bool _emergencyEscalationTriggered = false;
+  // Escalates after this many extra seconds in critical risk at the same spot
+  // (10 minutes = 600 seconds beyond the safe-exposure limit)
+  static const int _escalationThresholdSeconds = 10 * 60;
+  // Movement threshold in metres — less than this counts as "not moved"
+  static const double _movementThresholdMetres = 10.0;
   bool _debugMode = false;
   StreamSubscription<void>? _zoneUpdatesSubscription;
   int _exposureSeconds = 0;
@@ -300,6 +310,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
       _exposureSeconds = 0;
       _maxTempDuringExposure = null;
       _maxRiskDuringExposure = 0.0;
+      // Reset escalation when user reaches shade
+      _criticalRiskStartExposureSeconds = null;
+      _criticalRiskStartLocation = null;
+      _emergencyEscalationTriggered = false;
     } else {
       _exposureTimer ??= Timer.periodic(const Duration(seconds: 1), (timer) {
         if (mounted) {
@@ -320,6 +334,59 @@ class _MonitorScreenState extends State<MonitorScreen> {
             // Dynamic threshold from backend training + critical risk fallback.
             if (_exposureSeconds > _safeExposureSeconds || currentRisk >= 0.8) {
               _showHeatWarning = true;
+            }
+
+            // --- Emergency Escalation ---
+            // Fires only when ALL conditions are true:
+            //  1. Exposure has exceeded the safe limit
+            //  2. Risk is CRITICAL (>= 0.66)
+            //  3. User has NOT moved more than _movementThresholdMetres from
+            //     where they were when the critical state began
+            //  4. _escalationThresholdSeconds of EXPOSURE time have elapsed
+            //     since the critical window opened (not wall-clock time, so
+            //     the turbo debug mode works correctly too)
+            final bool isPastLimit = _exposureSeconds > _safeExposureSeconds;
+            final bool isCritical = currentRisk >= 0.66;
+
+            if (isPastLimit && isCritical) {
+              // Snapshot on first entry into the critical window
+              if (_criticalRiskStartExposureSeconds == null) {
+                _criticalRiskStartExposureSeconds = _exposureSeconds;
+                _criticalRiskStartLocation = _currentLocation;
+              }
+
+              // Check whether the user has moved since the critical window opened
+              final bool hasNotMoved = _criticalRiskStartLocation == null ||
+                  _currentLocation == null ||
+                  const Distance().distance(
+                        _currentLocation!,
+                        _criticalRiskStartLocation!,
+                      ) <
+                      _movementThresholdMetres;
+
+              final int secondsInCritical =
+                  _exposureSeconds - _criticalRiskStartExposureSeconds!;
+
+              if (!_emergencyEscalationTriggered &&
+                  hasNotMoved &&
+                  secondsInCritical >= _escalationThresholdSeconds) {
+                _emergencyEscalationTriggered = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _showEmergencyEscalationDialog();
+                });
+              }
+
+              // If the user moves significantly, reset the clock so they get
+              // another grace period from the new position
+              if (!hasNotMoved) {
+                _criticalRiskStartExposureSeconds = _exposureSeconds;
+                _criticalRiskStartLocation = _currentLocation;
+                _emergencyEscalationTriggered = false;
+              }
+            } else {
+              // Risk dropped below critical — reset the clock
+              _criticalRiskStartExposureSeconds = null;
+              _criticalRiskStartLocation = null;
             }
           });
         }
@@ -404,6 +471,105 @@ class _MonitorScreenState extends State<MonitorScreen> {
     if (ratio < 0.33) return Colors.green;
     if (ratio < 0.66) return Colors.amber.shade700;
     return Colors.red;
+  }
+
+  /// Shows the emergency escalation dialog when the user has been in critical
+  /// risk, past the exposure limit, at the same coordinates for over
+  /// [_escalationThresholdSeconds] seconds of exposure time.
+  void _showEmergencyEscalationDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.red.shade900.withValues(alpha: 0.55),
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: _EscalationDialog(
+            formattedExposure: _formattedExposure,
+            thresholdMinutes: _escalationThresholdSeconds ~/ 60,
+            // Called when the user taps "Call Emergency Services"
+            onCallEmergency: () {
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 5),
+                  content: Text(
+                    '🚨 Calling Emergency Services...',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            },
+            // Called when the user taps "Navigate to Nearest Shade"
+            onNavigateToShade: () {
+              Navigator.of(dialogContext).pop();
+              if (_currentLocation != null && !_isInShadedArea) {
+                LatLng? nearestPoint;
+                double minDistance = double.infinity;
+                final dist = const Distance();
+                for (final zone in _activeZones.where(
+                  (z) => z.type == ZoneType.shaded,
+                )) {
+                  for (final point in zone.points) {
+                    final d = dist.distance(_currentLocation!, point);
+                    if (d < minDistance) {
+                      minDistance = d;
+                      nearestPoint = point;
+                    }
+                  }
+                }
+                if (nearestPoint != null) {
+                  setState(() {
+                    _routePoints = [_currentLocation!, nearestPoint!];
+                    _isFollowingLocation = false;
+                  });
+                  _mapController.move(nearestPoint, 17.5);
+                }
+              }
+            },
+            // Called when the user dismisses manually
+            onDismiss: () => Navigator.of(dialogContext).pop(),
+            // Called automatically when the 3-minute countdown elapses with
+            // no interaction — dialog is already popped by the widget itself
+            onAutoDispatch: () {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.deepOrange.shade800,
+                    duration: const Duration(seconds: 10),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    content: const Row(
+                      children: [
+                        Icon(
+                          Icons.medical_services_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '🚑 A nearby emergency worker has been notified and is on the way to your location.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        );
+      },
+    );
   }
 
   /// Requests background/foreground location permissions and starts tracking if granted.
@@ -1241,6 +1407,278 @@ class _MonitorScreenState extends State<MonitorScreen> {
           },
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Emergency Escalation Dialog — StatefulWidget with built-in countdown timer
+// ---------------------------------------------------------------------------
+
+class _EscalationDialog extends StatefulWidget {
+  final String formattedExposure;
+  final int thresholdMinutes;
+  final VoidCallback onCallEmergency;
+  final VoidCallback onNavigateToShade;
+  final VoidCallback onDismiss;
+  /// Fired automatically when the 3-minute no-interaction window expires.
+  /// The dialog pops itself first, then calls this.
+  final VoidCallback onAutoDispatch;
+
+  const _EscalationDialog({
+    required this.formattedExposure,
+    required this.thresholdMinutes,
+    required this.onCallEmergency,
+    required this.onNavigateToShade,
+    required this.onDismiss,
+    required this.onAutoDispatch,
+  });
+
+  @override
+  State<_EscalationDialog> createState() => _EscalationDialogState();
+}
+
+class _EscalationDialogState extends State<_EscalationDialog> {
+  /// How long (seconds) before auto-dispatching if the user ignores the dialog.
+  static const int _autoDispatchSeconds = 3 * 60;
+
+  late int _secondsLeft;
+  Timer? _countdownTimer;
+  bool _dispatched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _secondsLeft = _autoDispatchSeconds;
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _secondsLeft--;
+      });
+      if (_secondsLeft <= 0) {
+        timer.cancel();
+        _autoDispatch();
+      }
+    });
+  }
+
+  void _autoDispatch() {
+    if (_dispatched || !mounted) return;
+    _dispatched = true;
+    _countdownTimer?.cancel();
+    // Pop the dialog first, then fire the parent callback
+    Navigator.of(context).pop();
+    widget.onAutoDispatch();
+  }
+
+  /// Cancels the auto-dispatch before the user's chosen action closes the dialog.
+  void _cancelAndRun(VoidCallback action) {
+    _dispatched = true;
+    _countdownTimer?.cancel();
+    action();
+  }
+
+  String get _formattedCountdown {
+    final m = _secondsLeft ~/ 60;
+    final s = _secondsLeft % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Countdown colour: green → amber → red as time runs out
+    final double fraction = _secondsLeft / _autoDispatchSeconds;
+    final Color countdownColor = fraction > 0.5
+        ? Colors.greenAccent.shade400
+        : fraction > 0.25
+            ? Colors.amber.shade300
+            : Colors.red.shade300;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.red.shade900, Colors.red.shade800],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.redAccent.shade100, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.45),
+            blurRadius: 28,
+            spreadRadius: 4,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.emergency, color: Colors.white, size: 52),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '⚠️ EMERGENCY ESCALATION',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+              letterSpacing: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+
+          // --- Auto-dispatch countdown ---
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Emergency worker dispatched in',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formattedCountdown,
+                  style: TextStyle(
+                    color: countdownColor,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'if no action is taken',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Description
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'You have been in CRITICAL heat risk for over '
+              '${widget.thresholdMinutes} minutes past your safe exposure '
+              'limit without moving to a safer location.',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Total exposure: ${widget.formattedExposure}',
+            style: TextStyle(
+              color: Colors.red.shade100,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Primary: Call now
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red.shade800,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.call, size: 22),
+              label: const Text(
+                'CALL EMERGENCY SERVICES',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              onPressed: () => _cancelAndRun(widget.onCallEmergency),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Secondary: Navigate to shade
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: const Icon(Icons.directions_walk, size: 20),
+              label: const Text(
+                'Navigate to Nearest Shade',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => _cancelAndRun(widget.onNavigateToShade),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Dismiss
+          TextButton(
+            onPressed: () => _cancelAndRun(widget.onDismiss),
+            child: const Text(
+              'I understand — dismiss',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
