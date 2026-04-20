@@ -157,6 +157,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     try {
       await BackendApiService.fetchZones();
       final loc = _currentLocation ?? _initialPosition;
+      await _refreshDaylightWindow(loc);
       final weather = await BackendApiService.fetchEffectiveWeather(
         location: loc,
       );
@@ -176,6 +177,21 @@ class _MonitorScreenState extends State<MonitorScreen> {
       rethrow;
     } finally {
       _isRefreshingServer = false;
+    }
+  }
+
+  Future<void> _refreshDaylightWindow(LatLng location) async {
+    try {
+      final daylight = await BackendApiService.fetchDaylightWindow(
+        location: location,
+      );
+      ZonePolygon.updateGlobalDayWindow(
+        startMinuteOfDay: daylight.startMinuteOfDay,
+        endMinuteOfDay: daylight.endMinuteOfDay,
+      );
+      _applyActiveZones();
+    } catch (e) {
+      debugPrint('Error fetching daylight window: $e');
     }
   }
 
@@ -211,6 +227,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Future<void> _fetchWeather() async {
     try {
       final loc = _currentLocation ?? _initialPosition;
+      await _refreshDaylightWindow(loc);
       final weather = await BackendApiService.fetchEffectiveWeather(
         location: loc,
       );
@@ -345,7 +362,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
 
     // timeFactor used additively (not as multiplier) so it can't reduce risk below expRisk
-    final double timeBonus = (timeFactor - 0.7) * 0.1; // 0.0 at off-peak, +0.06 at noon
+    final double timeBonus =
+        (timeFactor - 0.7) * 0.1; // 0.0 at off-peak, +0.06 at noon
 
     return (expRisk + tempBonus + timeBonus).clamp(0.0, 1.0);
   }
@@ -506,7 +524,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
         actions: [
           // Debug: fast-forward exposure to trigger critical risk alerts
           IconButton(
-            tooltip: _debugMode ? 'Turbo ON — tap to add +5 min exposure' : 'Enable Turbo Test Mode',
+            tooltip: _debugMode
+                ? 'Turbo ON — tap to add +5 min exposure'
+                : 'Enable Turbo Test Mode',
             icon: Icon(
               Icons.bolt,
               color: _debugMode ? Colors.yellow : Colors.white54,
@@ -516,7 +536,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 setState(() => _debugMode = true);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('⚡ Turbo mode ON — tap ⚡ to add +5 min exposure'),
+                    content: Text(
+                      '⚡ Turbo mode ON — tap ⚡ to add +5 min exposure',
+                    ),
                     backgroundColor: Colors.orange,
                     duration: Duration(seconds: 3),
                   ),
@@ -531,7 +553,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
                         ? _currentTempValue
                         : math.max(_maxTempDuringExposure!, _currentTempValue!);
                   }
-                  _maxRiskDuringExposure = math.max(_maxRiskDuringExposure, risk);
+                  _maxRiskDuringExposure = math.max(
+                    _maxRiskDuringExposure,
+                    risk,
+                  );
                   if (_exposureSeconds > _safeExposureSeconds || risk >= 0.8) {
                     _showHeatWarning = true;
                   }
@@ -577,7 +602,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _isInAlharam ? AppLocalizations.of(context)!.insideAlharam : AppLocalizations.of(context)!.outsideAlharam,
+                    _isInAlharam
+                        ? AppLocalizations.of(context)!.insideAlharam
+                        : AppLocalizations.of(context)!.outsideAlharam,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
@@ -836,7 +863,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
             children: [
               Text(
                 AppLocalizations.of(context)!.statusDashboard,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               if (_currentLocation != null)
                 Container(
@@ -863,7 +893,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _isInShadedArea ? AppLocalizations.of(context)!.shaded : AppLocalizations.of(context)!.unshaded,
+                        _isInShadedArea
+                            ? AppLocalizations.of(context)!.shaded
+                            : AppLocalizations.of(context)!.unshaded,
                         style: TextStyle(
                           color: _isInShadedArea
                               ? Colors.green.shade800

@@ -10,6 +10,8 @@ class Point(BaseModel):
 
 
 class ZoneBase(BaseModel):
+    id: int
+    zone_id: int
     name: str
     type: Literal["shaded", "unshaded"]
     points: list[Point] = Field(min_length=3)
@@ -32,7 +34,7 @@ class ZoneUpdate(ZoneBase):
 
 
 class ZoneOut(ZoneBase):
-    id: int
+    pass
 
 
 class IncidentIn(BaseModel):
@@ -70,3 +72,11 @@ class ExposureThresholdOut(BaseModel):
     rule_prediction_seconds: float
     blend_alpha: float
     sample_count: int
+
+
+class DaylightWindowOut(BaseModel):
+    start_minute_of_day: int
+    end_minute_of_day: int
+    sunrise_utc: datetime | None = None
+    sunset_utc: datetime | None = None
+    source: str

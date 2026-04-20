@@ -12,6 +12,9 @@ enum ZoneType { shaded, unshaded }
 /// A data model representing a geographic polygon zone (either shaded or unshaded).
 /// Includes properties for map rendering, identifying central points, and active time windows.
 class ZonePolygon {
+  static int globalDayStartMinute = 360;
+  static int globalDayEndMinute = 1080;
+
   final int? id;
   final String name;
   final ZoneType type;
@@ -56,24 +59,43 @@ class ZonePolygon {
   /// Determines if this zone is currently active based on its defined time window.
   /// Handles scenarios where the zone is active all day, or spans across midnight.
   bool isActiveAt(DateTime now) {
+    final nowUtc = now.toUtc();
+    final nowMinute = nowUtc.hour * 60 + nowUtc.minute;
+    if (!_isMinuteInWindow(
+      nowMinute,
+      globalDayStartMinute,
+      globalDayEndMinute,
+    )) {
+      return false;
+    }
+
     final start = startMinuteOfDay;
     final end = endMinuteOfDay;
     if (start == null || end == null) {
       return true;
     }
+    return _isMinuteInWindow(nowMinute, start, end);
+  }
 
-    final nowMinute = now.hour * 60 + now.minute;
-
+  static bool _isMinuteInWindow(int minute, int start, int end) {
     if (start == end) {
       return true;
     }
 
     if (start < end) {
-      return nowMinute >= start && nowMinute < end;
+      return minute >= start && minute < end;
     }
 
     // Overnight window. Example: 22:00 -> 05:00
-    return nowMinute >= start || nowMinute < end;
+    return minute >= start || minute < end;
+  }
+
+  static void updateGlobalDayWindow({
+    required int startMinuteOfDay,
+    required int endMinuteOfDay,
+  }) {
+    globalDayStartMinute = startMinuteOfDay;
+    globalDayEndMinute = endMinuteOfDay;
   }
 
   String get activeWindowLabel {

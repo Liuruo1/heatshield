@@ -11,14 +11,19 @@ from sqlalchemy.orm import Session
 from .config import (
     API_KEY,
     DEFAULT_SAFE_EXPOSURE_SECONDS,
+    ENFORCE_GLOBAL_DAYLIGHT_WINDOW,
+    GLOBAL_ZONE_DAY_END_MINUTE,
+    GLOBAL_ZONE_DAY_START_MINUTE,
     MIN_SAFE_EXPOSURE_SECONDS,
     MODEL_BLEND_MAX,
     MODEL_MIN_SAMPLES,
     OPEN_METEO_TIMEOUT_SECONDS,
+    USE_DYNAMIC_DAYLIGHT_WINDOW,
 )
 from .db import Base, SessionLocal, engine, get_db
 from .models import Incident, ModelBucket, Zone, ZonePoint
 from .schemas import (
+    DaylightWindowOut,
     EffectiveWeatherOut,
     ExposureThresholdOut,
     IncidentIn,
@@ -31,6 +36,7 @@ from .schemas import (
 app = FastAPI(title="HeatShield API", version="1.0.0")
 _BASE_DIR = Path(__file__).resolve().parent
 _DEFAULT_ZONES_PATH = _BASE_DIR / "default_zones.json"
+_DAYLIGHT_WINDOW_CACHE: dict[tuple[float, float, str], tuple[int, int, datetime, datetime]] = {}
 
 
 def _require_api_key(x_api_key: str = Header(default="")):
@@ -144,19 +150,94 @@ def _seed_default_zones_if_needed(db: Session) -> None:
     db.commit()
 
 
-def _zone_is_active(zone: Zone) -> bool:
-    start = zone.start_minute_of_day
-    end = zone.end_minute_of_day
-    if start is None or end is None:
-        return True
-
-    now = datetime.now(timezone.utc)
-    minute = now.hour * 60 + now.minute
+def _minute_in_window(minute: int, start: int, end: int) -> bool:
     if start == end:
         return True
     if start < end:
         return start <= minute < end
     return minute >= start or minute < end
+
+
+def _minute_of_day(dt: datetime) -> int:
+    return dt.hour * 60 + dt.minute
+
+
+def _fetch_open_meteo_daylight_window(
+    lat: float,
+    lng: float,
+) -> tuple[int, int, datetime, datetime]:
+    response = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": lat,
+            "longitude": lng,
+            "daily": "sunrise,sunset",
+            "forecast_days": 1,
+            "timezone": "UTC",
+        },
+        timeout=OPEN_METEO_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    data = response.json()
+    daily = data.get("daily", {})
+    sunrises = daily.get("sunrise") or []
+    sunsets = daily.get("sunset") or []
+    if not sunrises or not sunsets:
+        raise ValueError("Sunrise/sunset data not available")
+
+    sunrise = datetime.fromisoformat(sunrises[0].replace("Z", "+00:00"))
+    sunset = datetime.fromisoformat(sunsets[0].replace("Z", "+00:00"))
+    return _minute_of_day(sunrise), _minute_of_day(sunset), sunrise, sunset
+
+
+def _resolve_daylight_window(
+    lat: float,
+    lng: float,
+    now_utc: datetime,
+) -> tuple[int, int, datetime | None, datetime | None, str]:
+    if not ENFORCE_GLOBAL_DAYLIGHT_WINDOW:
+        return GLOBAL_ZONE_DAY_START_MINUTE, GLOBAL_ZONE_DAY_END_MINUTE, None, None, "disabled"
+
+    if not USE_DYNAMIC_DAYLIGHT_WINDOW:
+        return (
+            GLOBAL_ZONE_DAY_START_MINUTE,
+            GLOBAL_ZONE_DAY_END_MINUTE,
+            None,
+            None,
+            "fixed-config",
+        )
+
+    cache_key = (round(lat, 2), round(lng, 2), now_utc.date().isoformat())
+    cached = _DAYLIGHT_WINDOW_CACHE.get(cache_key)
+    if cached is not None:
+        start, end, sunrise, sunset = cached
+        return start, end, sunrise, sunset, "open-meteo-cache"
+
+    try:
+        start, end, sunrise, sunset = _fetch_open_meteo_daylight_window(lat, lng)
+    except Exception:
+        return GLOBAL_ZONE_DAY_START_MINUTE, GLOBAL_ZONE_DAY_END_MINUTE, None, None, "fallback-fixed"
+
+    _DAYLIGHT_WINDOW_CACHE[cache_key] = (start, end, sunrise, sunset)
+    return start, end, sunrise, sunset, "open-meteo"
+
+
+def _global_zones_enabled(minute: int, lat: float, lng: float, now_utc: datetime) -> bool:
+    if not ENFORCE_GLOBAL_DAYLIGHT_WINDOW:
+        return True
+    start, end, _, _, _ = _resolve_daylight_window(lat, lng, now_utc)
+    return _minute_in_window(minute, start, end)
+
+
+def _zone_is_active(zone: Zone, minute: int, global_zones_enabled: bool) -> bool:
+    if not global_zones_enabled:
+        return False
+
+    start = zone.start_minute_of_day
+    end = zone.end_minute_of_day
+    if start is None or end is None:
+        return True
+    return _minute_in_window(minute, start, end)
 
 
 def _point_in_polygon(lat: float, lng: float, polygon: list[ZonePoint]) -> bool:
@@ -178,6 +259,7 @@ def _serialize_zone(zone: Zone) -> ZoneOut:
     points = sorted(zone.points, key=lambda p: p.point_order)
     return ZoneOut(
         id=zone.id,
+        zone_id=zone.id,
         name=zone.name,
         type=zone.type,
         fill_alpha=zone.fill_alpha,
@@ -285,7 +367,10 @@ def list_zones(db: Session = Depends(get_db)):
 
 @app.get("/v1/zones/defaults", response_model=list[ZoneOut])
 def list_default_zones():
-    return [ZoneOut(**payload, id=index + 1) for index, payload in enumerate(_load_default_zones())]
+    return [
+        ZoneOut(**payload, id=index + 1, zone_id=index + 1)
+        for index, payload in enumerate(_load_default_zones())
+    ]
 
 
 @app.post("/v1/zones/reset-defaults", response_model=list[ZoneOut], dependencies=[Depends(_require_api_key)])
@@ -382,9 +467,12 @@ def ingest_incident(payload: IncidentIn, db: Session = Depends(get_db)):
 @app.get("/v1/weather/effective", response_model=EffectiveWeatherOut)
 def effective_weather(lat: float, lng: float, db: Session = Depends(get_db)):
     base_temp = _fetch_open_meteo_temp(lat, lng)
+    now_utc = datetime.now(timezone.utc)
+    minute_utc = _minute_of_day(now_utc)
+    zones_enabled = _global_zones_enabled(minute_utc, lat, lng, now_utc)
     matched_zone = None
     for zone in db.scalars(select(Zone).order_by(Zone.id.asc())).all():
-        if not _zone_is_active(zone):
+        if not _zone_is_active(zone, minute_utc, zones_enabled):
             continue
         ordered_points = sorted(zone.points, key=lambda p: p.point_order)
         if _point_in_polygon(lat, lng, ordered_points):
@@ -392,7 +480,6 @@ def effective_weather(lat: float, lng: float, db: Session = Depends(get_db)):
             break
 
     delta = matched_zone.temp_delta_c if matched_zone else 0.0
-    now = datetime.now(timezone.utc)
     return EffectiveWeatherOut(
         base_temp_c=round(base_temp, 2),
         effective_temp_c=round(base_temp + delta, 2),
@@ -401,7 +488,20 @@ def effective_weather(lat: float, lng: float, db: Session = Depends(get_db)):
         zone_name=matched_zone.name if matched_zone else None,
         zone_type=matched_zone.type if matched_zone else None,
         source="open-meteo",
-        timestamp=now,
+        timestamp=now_utc,
+    )
+
+
+@app.get("/v1/daylight-window", response_model=DaylightWindowOut)
+def daylight_window(lat: float, lng: float):
+    now_utc = datetime.now(timezone.utc)
+    start, end, sunrise, sunset, source = _resolve_daylight_window(lat, lng, now_utc)
+    return DaylightWindowOut(
+        start_minute_of_day=start,
+        end_minute_of_day=end,
+        sunrise_utc=sunrise,
+        sunset_utc=sunset,
+        source=source,
     )
 
 

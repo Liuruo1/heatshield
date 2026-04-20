@@ -50,6 +50,23 @@ class ExposureThreshold {
   }
 }
 
+class DaylightWindow {
+  final int startMinuteOfDay;
+  final int endMinuteOfDay;
+
+  const DaylightWindow({
+    required this.startMinuteOfDay,
+    required this.endMinuteOfDay,
+  });
+
+  factory DaylightWindow.fromJson(Map<String, dynamic> json) {
+    return DaylightWindow(
+      startMinuteOfDay: json['start_minute_of_day'] as int,
+      endMinuteOfDay: json['end_minute_of_day'] as int,
+    );
+  }
+}
+
 class BackendZone {
   final int id;
   final String name;
@@ -172,6 +189,27 @@ class BackendApiService {
 
     final decoded = json.decode(response.body) as Map<String, dynamic>;
     return ExposureThreshold.fromJson(decoded);
+  }
+
+  static Future<DaylightWindow> fetchDaylightWindow({
+    required LatLng location,
+  }) async {
+    final uri = Uri.parse(
+      '$_baseUrl/v1/daylight-window?lat=${location.latitude}&lng=${location.longitude}',
+    );
+
+    final response = await _sendRequest(
+      () =>
+          http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to fetch daylight window: ${response.statusCode}',
+      );
+    }
+
+    final decoded = json.decode(response.body) as Map<String, dynamic>;
+    return DaylightWindow.fromJson(decoded);
   }
 
   static Future<List<BackendZone>> fetchZones() async {
