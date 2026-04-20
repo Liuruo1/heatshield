@@ -30,34 +30,40 @@ class HistoryScreen extends StatelessWidget {
     return Colors.red;
   }
 
-  String _getRiskText(double ratio) {
-    if (ratio < 0.33) return 'Low Risk';
-    if (ratio < 0.66) return 'Moderate Risk';
-    return 'High Risk';
+  String _getRiskText(double ratio, BuildContext context) {
+    if (ratio < 0.33) return AppLocalizations.of(context)!.lowRisk;
+    if (ratio < 0.66) return AppLocalizations.of(context)!.moderateRisk;
+    return AppLocalizations.of(context)!.highRisk;
+  }
+
+  String _getShortRiskText(double ratio, BuildContext context) {
+    if (ratio < 0.33) return AppLocalizations.of(context)!.low;
+    if (ratio < 0.66) return AppLocalizations.of(context)!.moderate;
+    return AppLocalizations.of(context)!.critical;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Exposure History'),
+        title: Text(AppLocalizations.of(context)!.exposureHistory),
         backgroundColor: Colors.teal.shade700,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Clear History',
+            tooltip: AppLocalizations.of(context)!.clearHistoryTooltip,
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (BuildContext context) {
                   return AlertDialog(
-                    title: const Text('Clear History?'),
-                    content: const Text('This will permanently delete all your exposure records.'),
+                    title: Text(AppLocalizations.of(context)!.clearHistoryTitle),
+                    content: Text(AppLocalizations.of(context)!.clearHistoryContent),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text(AppLocalizations.of(context)!.cancel),
                       ),
                       ElevatedButton(
                         onPressed: () {
@@ -68,7 +74,7 @@ class HistoryScreen extends StatelessWidget {
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Clear'),
+                        child: Text(AppLocalizations.of(context)!.clear),
                       ),
                     ],
                   );
@@ -94,7 +100,7 @@ class HistoryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'No History Yet',
+                    AppLocalizations.of(context)!.noHistoryYet,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -103,7 +109,7 @@ class HistoryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Your past heat exposure events will appear here once recorded.',
+                    AppLocalizations.of(context)!.noHistoryDesc,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -124,9 +130,9 @@ class HistoryScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Overall Summary',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Text(
+                        AppLocalizations.of(context)!.overallSummary,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -134,7 +140,7 @@ class HistoryScreen extends StatelessWidget {
                           Expanded(
                             child: _buildSummaryCard(
                               context,
-                              title: 'Total\nExposures',
+                              title: AppLocalizations.of(context)!.totalExposures,
                               value: historyService.totalExposures.toString(),
                               icon: Icons.timer_outlined,
                               color: Colors.blue,
@@ -144,7 +150,7 @@ class HistoryScreen extends StatelessWidget {
                           Expanded(
                             child: _buildSummaryCard(
                               context,
-                              title: 'Total\nDuration',
+                              title: AppLocalizations.of(context)!.totalDuration,
                               value: _formatDuration(historyService.totalDurationSeconds),
                               icon: Icons.hourglass_bottom,
                               color: Colors.orange,
@@ -154,8 +160,8 @@ class HistoryScreen extends StatelessWidget {
                           Expanded(
                             child: _buildSummaryCard(
                               context,
-                              title: 'Average\nRisk',
-                              value: _getRiskText(historyService.averageRiskRatio).replaceAll(' Risk', ''),
+                              title: AppLocalizations.of(context)!.averageRisk,
+                              value: _getShortRiskText(historyService.averageRiskRatio, context),
                               icon: Icons.monitor_heart,
                               color: _getRiskColor(historyService.averageRiskRatio),
                             ),
@@ -163,9 +169,9 @@ class HistoryScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      const Text(
-                        'Recent Incidents',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Text(
+                        AppLocalizations.of(context)!.recentIncidents,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -234,7 +240,7 @@ class HistoryScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _getRiskText(incident.maxRiskRatio),
+                                _getRiskText(incident.maxRiskRatio, context),
                                 style: TextStyle(
                                   color: _getRiskColor(incident.maxRiskRatio),
                                   fontWeight: FontWeight.bold,

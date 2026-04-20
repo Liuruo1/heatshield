@@ -247,6 +247,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'About HeatShield'**
   String get about;
+
+  /// No description provided for @nearestSafeZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearest Safe Zone'**
+  String get nearestSafeZone;
+
+  /// No description provided for @criticalHeatRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'CRITICAL HEAT RISK'**
+  String get criticalHeatRisk;
+
+  /// No description provided for @seekShadeImmediately.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been in direct sunlight for too long. Seek shade immediately.'**
+  String get seekShadeImmediately;
+
+  /// No description provided for @routingToShade.
+  ///
+  /// In en, this message translates to:
+  /// **'Routing to nearest shaded zone...'**
+  String get routingToShade;
+
+  /// No description provided for @alreadyInShade.
+  ///
+  /// In en, this message translates to:
+  /// **'You are already in a safe shaded zone.'**
+  String get alreadyInShade;
+
+  /// No description provided for @riskLevelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk Level'**
+  String get riskLevelLabel;
+
+  /// No description provided for @emergencySos.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency SOS'**
+  String get emergencySos;
+
+  /// No description provided for @callEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'CALL EMERGENCY SERVICES'**
+  String get callEmergency;
+
+  /// No description provided for @navigateToShade.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate to Nearest Shade'**
+  String get navigateToShade;
+
+  /// No description provided for @emergencyEscalation.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ EMERGENCY ESCALATION'**
+  String get emergencyEscalation;
+
+  /// No description provided for @emergencyWorkerDispatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency worker dispatched in'**
+  String get emergencyWorkerDispatched;
+
+  /// No description provided for @ifNoActionTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'if no action is taken'**
+  String get ifNoActionTaken;
+
+  /// No description provided for @criticalRiskMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been in CRITICAL heat risk for over'**
+  String get criticalRiskMessage;
+
+  /// No description provided for @totalExposureLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total exposure:'**
+  String get totalExposureLabel;
+
+  /// No description provided for @iUnderstandDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand — dismiss'**
+  String get iUnderstandDismiss;
+
+  /// No description provided for @heatStressZoneWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'WARNING: You are entering a Heat Stress Zone!!'**
+  String get heatStressZoneWarning;
+
+  /// No description provided for @callingEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'🚨 Calling Emergency Services...'**
+  String get callingEmergency;
+
+  /// No description provided for @emergencyWorkerOnWay.
+  ///
+  /// In en, this message translates to:
+  /// **'🚑 A nearby emergency worker has been notified and is on the way to your location.'**
+  String get emergencyWorkerOnWay;
+
+  /// No description provided for @areYouSureEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to call Emergency Services?'**
+  String get areYouSureEmergency;
+
+  /// No description provided for @callNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Call Now'**
+  String get callNow;
+
+  /// No description provided for @criticalRiskForMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'minutes past your safe exposure limit without moving to a safer location.'**
+  String get criticalRiskForMinutes;
+
+  /// No description provided for @lowRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Risk'**
+  String get lowRisk;
+
+  /// No description provided for @moderateRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Moderate Risk'**
+  String get moderateRisk;
+
+  /// No description provided for @highRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'High Risk'**
+  String get highRisk;
+
+  /// No description provided for @exposureHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Exposure History'**
+  String get exposureHistory;
+
+  /// No description provided for @clearHistoryTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear History'**
+  String get clearHistoryTooltip;
+
+  /// No description provided for @clearHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear History?'**
+  String get clearHistoryTitle;
+
+  /// No description provided for @clearHistoryContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete all your exposure records.'**
+  String get clearHistoryContent;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @noHistoryYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No History Yet'**
+  String get noHistoryYet;
+
+  /// No description provided for @noHistoryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your past heat exposure events will appear here once recorded.'**
+  String get noHistoryDesc;
+
+  /// No description provided for @overallSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall Summary'**
+  String get overallSummary;
+
+  /// No description provided for @totalExposures.
+  ///
+  /// In en, this message translates to:
+  /// **'Total\nExposures'**
+  String get totalExposures;
+
+  /// No description provided for @totalDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Total\nDuration'**
+  String get totalDuration;
+
+  /// No description provided for @averageRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Average\nRisk'**
+  String get averageRisk;
+
+  /// No description provided for @recentIncidents.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Incidents'**
+  String get recentIncidents;
 }
 
 class _AppLocalizationsDelegate

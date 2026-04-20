@@ -461,10 +461,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
-  String _getRiskLevelText(double ratio) {
-    if (ratio < 0.33) return 'LOW';
-    if (ratio < 0.66) return 'MODERATE';
-    return 'CRITICAL';
+  String _getRiskLevelText(double ratio, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (ratio < 0.33) return l10n.low;
+    if (ratio < 0.66) return l10n.moderate;
+    return l10n.critical;
   }
 
   Color _getRiskColor(double ratio) {
@@ -583,12 +584,12 @@ class _MonitorScreenState extends State<MonitorScreen> {
           onAlert: () {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Text(
-                    'WARNING: You are entering a Heat Stress Zone!!',
+                    AppLocalizations.of(context)!.heatStressZoneWarning,
                   ),
                   backgroundColor: Colors.red,
-                  duration: Duration(seconds: 3),
+                  duration: const Duration(seconds: 3),
                 ),
               );
             }
@@ -946,6 +947,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   /// Builds a critical warning UI popup shown when exposure limits are exceeded.
   Widget _buildHeatWarningAlert() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -972,20 +974,20 @@ class _MonitorScreenState extends State<MonitorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text(
-                  'CRITICAL HEAT RISK',
-                  style: TextStyle(
+                  l10n.criticalHeatRisk,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     letterSpacing: 1.2,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'You have been in direct sunlight for too long. Seek shade immediately.',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  l10n.seekShadeImmediately,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
@@ -1130,13 +1132,12 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        final l10n = AppLocalizations.of(context)!;
                         if (_currentLocation == null) return;
                         if (_isInShadedArea) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'You are already in a safe shaded zone.',
-                              ),
+                            SnackBar(
+                              content: Text(l10n.alreadyInShade),
                             ),
                           );
                           return;
@@ -1170,18 +1171,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
                           _mapController.move(nearestPoint, 17.5);
 
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Routing to nearest shaded zone...',
-                              ),
+                            SnackBar(
+                              content: Text(l10n.routingToShade),
                             ),
                           );
                         }
                       },
                       icon: const Icon(Icons.directions_walk, size: 24),
-                      label: const Text(
-                        'Nearest Safe Zone',
-                        style: TextStyle(
+                      label: Text(
+                        AppLocalizations.of(context)!.nearestSafeZone,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1204,9 +1203,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        final l10n = AppLocalizations.of(context)!;
                         showDialog(
                           context: context,
-                          builder: (BuildContext context) {
+                          builder: (BuildContext ctx) {
                             return AlertDialog(
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
@@ -1216,32 +1216,32 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                 color: Colors.red,
                                 size: 48,
                               ),
-                              title: const Text(
-                                'Emergency SOS',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              title: Text(
+                                l10n.emergencySos,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              content: const Text(
-                                'Are you sure you want to call Emergency Services?',
+                              content: Text(
+                                l10n.areYouSureEmergency,
                                 textAlign: TextAlign.center,
                               ),
                               actionsAlignment: MainAxisAlignment.center,
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text(
-                                    'Cancel',
-                                    style: TextStyle(color: Colors.grey),
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: Text(
+                                    l10n.iUnderstandDismiss,
+                                    style: const TextStyle(color: Colors.grey),
                                   ),
                                 ),
                                 ElevatedButton(
                                   onPressed: () {
-                                    Navigator.of(context).pop();
+                                    Navigator.of(ctx).pop();
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         backgroundColor: Colors.red,
-                                        content: Text(
-                                          'Calling Emergency Services...',
-                                        ),
+                                        content: Text(l10n.callingEmergency),
                                       ),
                                     );
                                   },
@@ -1249,7 +1249,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                     backgroundColor: Colors.red.shade600,
                                     foregroundColor: Colors.white,
                                   ),
-                                  child: const Text('Call Now'),
+                                  child: Text(l10n.callNow),
                                 ),
                               ],
                             );
@@ -1332,7 +1332,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Widget _buildRiskMeter(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final double riskRatio = _calculateRiskRatio();
-    final String riskText = _getRiskLevelText(riskRatio);
+    final String riskText = _getRiskLevelText(riskRatio, context);
     final Color riskColor = _getRiskColor(riskRatio);
 
     return Column(
@@ -1342,7 +1342,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Risk Level',
+              AppLocalizations.of(context)!.riskLevelLabel,
               style: TextStyle(
                 color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.bold,
@@ -1538,9 +1538,9 @@ class _EscalationDialogState extends State<_EscalationDialog> {
             child: const Icon(Icons.emergency, color: Colors.white, size: 52),
           ),
           const SizedBox(height: 12),
-          const Text(
-            '⚠️ EMERGENCY ESCALATION',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.emergencyEscalation,
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w900,
               fontSize: 18,
@@ -1560,7 +1560,7 @@ class _EscalationDialogState extends State<_EscalationDialog> {
             child: Column(
               children: [
                 Text(
-                  'Emergency worker dispatched in',
+                  AppLocalizations.of(context)!.emergencyWorkerDispatched,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 12,
@@ -1579,7 +1579,7 @@ class _EscalationDialogState extends State<_EscalationDialog> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'if no action is taken',
+                  AppLocalizations.of(context)!.ifNoActionTaken,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 11,
@@ -1598,9 +1598,9 @@ class _EscalationDialogState extends State<_EscalationDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              'You have been in CRITICAL heat risk for over '
-              '${widget.thresholdMinutes} minutes past your safe exposure '
-              'limit without moving to a safer location.',
+              '${AppLocalizations.of(context)!.criticalRiskMessage} '
+              '${widget.thresholdMinutes} '
+              '${AppLocalizations.of(context)!.criticalRiskForMinutes}',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -1611,7 +1611,7 @@ class _EscalationDialogState extends State<_EscalationDialog> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Total exposure: ${widget.formattedExposure}',
+            '${AppLocalizations.of(context)!.totalExposureLabel} ${widget.formattedExposure}',
             style: TextStyle(
               color: Colors.red.shade100,
               fontSize: 12,
@@ -1634,9 +1634,9 @@ class _EscalationDialogState extends State<_EscalationDialog> {
                 elevation: 0,
               ),
               icon: const Icon(Icons.call, size: 22),
-              label: const Text(
-                'CALL EMERGENCY SERVICES',
-                style: TextStyle(
+              label: Text(
+                AppLocalizations.of(context)!.callEmergency,
+                style: const TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 14,
                   letterSpacing: 0.8,
@@ -1660,9 +1660,9 @@ class _EscalationDialogState extends State<_EscalationDialog> {
                 ),
               ),
               icon: const Icon(Icons.directions_walk, size: 20),
-              label: const Text(
-                'Navigate to Nearest Shade',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              label: Text(
+                AppLocalizations.of(context)!.navigateToShade,
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               onPressed: () => _cancelAndRun(widget.onNavigateToShade),
             ),
@@ -1672,9 +1672,9 @@ class _EscalationDialogState extends State<_EscalationDialog> {
           // Dismiss
           TextButton(
             onPressed: () => _cancelAndRun(widget.onDismiss),
-            child: const Text(
-              'I understand — dismiss',
-              style: TextStyle(color: Colors.white54, fontSize: 13),
+            child: Text(
+              AppLocalizations.of(context)!.iUnderstandDismiss,
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
           ),
         ],

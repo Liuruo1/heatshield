@@ -82,4 +82,120 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get about => 'حول التطبيق';
+
+  @override
+  String get nearestSafeZone => 'أقرب منطقة آمنة';
+
+  @override
+  String get criticalHeatRisk => 'خطر حرارة حرج';
+
+  @override
+  String get seekShadeImmediately =>
+      'لقد تعرضت لأشعة الشمس لفترة طويلة جداً. اذهب إلى الظل فوراً.';
+
+  @override
+  String get routingToShade => 'جارٍ التوجيه إلى أقرب منطقة مظللة...';
+
+  @override
+  String get alreadyInShade => 'أنت بالفعل في منطقة مظللة آمنة.';
+
+  @override
+  String get riskLevelLabel => 'مستوى الخطر';
+
+  @override
+  String get emergencySos => 'نداء استغاثة';
+
+  @override
+  String get callEmergency => 'الاتصال بخدمات الطوارئ';
+
+  @override
+  String get navigateToShade => 'التوجه إلى أقرب ظل';
+
+  @override
+  String get emergencyEscalation => '⚠️ تصعيد طارئ';
+
+  @override
+  String get emergencyWorkerDispatched => 'سيصل عامل الطوارئ خلال';
+
+  @override
+  String get ifNoActionTaken => 'إذا لم يتم اتخاذ أي إجراء';
+
+  @override
+  String get criticalRiskMessage => 'لقد كنت في خطر حراري حرج لأكثر من';
+
+  @override
+  String get totalExposureLabel => 'إجمالي التعرض:';
+
+  @override
+  String get iUnderstandDismiss => 'فهمت — إغلاق';
+
+  @override
+  String get heatStressZoneWarning => 'تحذير: أنت تدخل منطقة إجهاد حراري!';
+
+  @override
+  String get callingEmergency => '🚨 جارٍ الاتصال بخدمات الطوارئ...';
+
+  @override
+  String get emergencyWorkerOnWay =>
+      '🚑 تم إبلاغ عامل طوارئ قريب وهو في طريقه إليك.';
+
+  @override
+  String get areYouSureEmergency => 'هل أنت متأكد من الاتصال بخدمات الطوارئ؟';
+
+  @override
+  String get callNow => 'اتصل الآن';
+
+  @override
+  String get criticalRiskForMinutes =>
+      'دقيقة بعد تجاوز حد التعرض الآمن دون الانتقال إلى مكان أكثر أماناً.';
+
+  @override
+  String get lowRisk => 'خطر منخفض';
+
+  @override
+  String get moderateRisk => 'خطر متوسط';
+
+  @override
+  String get highRisk => 'خطر عالي';
+
+  @override
+  String get exposureHistory => 'سجل التعرض';
+
+  @override
+  String get clearHistoryTooltip => 'مسح السجل';
+
+  @override
+  String get clearHistoryTitle => 'مسح السجل؟';
+
+  @override
+  String get clearHistoryContent =>
+      'سيؤدي هذا إلى حذف جميع سجلات التعرض الخاصة بك نهائياً.';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get clear => 'مسح';
+
+  @override
+  String get noHistoryYet => 'لا يوجد سجل حتى الآن';
+
+  @override
+  String get noHistoryDesc =>
+      'ستظهر أحداث التعرض للحرارة السابقة هنا بمجرد تسجيلها.';
+
+  @override
+  String get overallSummary => 'ملخص عام';
+
+  @override
+  String get totalExposures => 'إجمالي\nالتعرضات';
+
+  @override
+  String get totalDuration => 'إجمالي\nالمدة';
+
+  @override
+  String get averageRisk => 'متوسط\nالخطر';
+
+  @override
+  String get recentIncidents => 'الأحداث الأخيرة';
 }
