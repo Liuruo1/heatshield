@@ -61,7 +61,7 @@ class ZonePolygon {
   bool isActiveAt(DateTime now) {
     final nowUtc = now.toUtc();
     final nowMinute = nowUtc.hour * 60 + nowUtc.minute;
-    if (!_isMinuteInWindow(
+    if (!isMinuteInWindow(
       nowMinute,
       globalDayStartMinute,
       globalDayEndMinute,
@@ -74,10 +74,10 @@ class ZonePolygon {
     if (start == null || end == null) {
       return true;
     }
-    return _isMinuteInWindow(nowMinute, start, end);
+    return isMinuteInWindow(nowMinute, start, end);
   }
 
-  static bool _isMinuteInWindow(int minute, int start, int end) {
+  static bool isMinuteInWindow(int minute, int start, int end) {
     if (start == end) {
       return true;
     }

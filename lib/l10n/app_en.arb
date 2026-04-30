@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
   "appTitle": "HeatShield",
-  "monitorTitle": "HeatShield Monitor",
+  "monitorTitle": "HeatShield",
   "dashboard": "Dashboard",
   "settings": "Settings",
   "history": "History",
@@ -61,5 +61,6 @@
   "totalExposures": "Total\nExposures",
   "totalDuration": "Total\nDuration",
   "averageRisk": "Average\nRisk",
-  "recentIncidents": "Recent Incidents"
+  "recentIncidents": "Recent Incidents",
+  "nighttime": "Nighttime"
 }

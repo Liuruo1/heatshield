@@ -107,7 +107,7 @@ abstract class AppLocalizations {
   /// No description provided for @monitorTitle.
   ///
   /// In en, this message translates to:
-  /// **'HeatShield Monitor'**
+  /// **'HeatShield'**
   String get monitorTitle;
 
   /// No description provided for @dashboard.
@@ -469,6 +469,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recent Incidents'**
   String get recentIncidents;
+
+  /// No description provided for @nighttime.
+  ///
+  /// In en, this message translates to:
+  /// **'Nighttime'**
+  String get nighttime;
 }
 
 class _AppLocalizationsDelegate

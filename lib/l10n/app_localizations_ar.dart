@@ -12,7 +12,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get appTitle => 'درع الحرارة';
 
   @override
-  String get monitorTitle => 'مراقب درع الحرارة';
+  String get monitorTitle => 'درع الحرارة';
 
   @override
   String get dashboard => 'لوحة القيادة';
@@ -198,4 +198,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get recentIncidents => 'الأحداث الأخيرة';
+
+  @override
+  String get nighttime => 'وقت الليل';
 }

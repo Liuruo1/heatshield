@@ -12,7 +12,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'HeatShield';
 
   @override
-  String get monitorTitle => 'HeatShield Monitor';
+  String get monitorTitle => 'HeatShield';
 
   @override
   String get dashboard => 'Dashboard';
@@ -201,4 +201,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recentIncidents => 'Recent Incidents';
+
+  @override
+  String get nighttime => 'Nighttime';
 }

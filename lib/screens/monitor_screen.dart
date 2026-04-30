@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:latlong2/latlong.dart';
@@ -276,6 +277,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   /// Evaluates whether the user's initial location is within any active shaded zone
   /// and updates the exposure tracker accordingly.
+  bool get _isNightTime {
+    final nowUtc = DateTime.now().toUtc();
+    final nowMinute = nowUtc.hour * 60 + nowUtc.minute;
+    return !ZonePolygon.isMinuteInWindow(
+      nowMinute,
+      ZonePolygon.globalDayStartMinute,
+      ZonePolygon.globalDayEndMinute,
+    );
+  }
+
   void _checkInitialLocation() {
     if (_currentLocation != null && _zonesReady) {
       bool inShaded = false;
@@ -294,7 +305,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Manages the timer that tracks how long the user has been exposed to the sun.
   /// If the user enters a shaded zone, logs the incident and resets the timer.
   void _updateExposureTimer(bool inShaded) {
-    if (inShaded) {
+    if (inShaded || _isNightTime) {
       if (_exposureSeconds > 5) {
         unawaited(
           _logExposureIncident(
@@ -317,6 +328,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
     } else {
       _exposureTimer ??= Timer.periodic(const Duration(seconds: 1), (timer) {
         if (mounted) {
+          if (_isNightTime) {
+            _updateExposureTimer(false);
+            return;
+          }
           setState(() {
             _exposureSeconds++;
             double currentRisk = _calculateRiskRatio();
@@ -408,6 +423,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Calculates a continuous heat risk ratio (0.0 to 1.0) based on current temperature
   /// and duration of continuous sun exposure.
   double _calculateRiskRatio() {
+    if (_isNightTime) return 0.0;
+    
     final now = DateTime.now();
     final minuteOfDay = now.hour * 60 + now.minute;
     double timeFactor = 0.7;
@@ -684,7 +701,25 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.monitorTitle),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(AppLocalizations.of(context)!.monitorTitle),
+            StreamBuilder(
+              stream: Stream.periodic(const Duration(seconds: 1)),
+              builder: (context, _) {
+                return Text(
+                  DateFormat('hh:mm a').format(DateTime.now()),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.white70,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
         backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
         elevation: 2,
@@ -1043,31 +1078,41 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: _isInShadedArea
-                        ? Colors.green.shade100
-                        : Colors.red.shade100,
+                    color: _isNightTime
+                        ? Colors.indigo.shade100
+                        : (_isInShadedArea
+                            ? Colors.green.shade100
+                            : Colors.red.shade100),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _isInShadedArea
-                            ? Icons.check_circle
-                            : Icons.warning_amber_rounded,
-                        color: _isInShadedArea
-                            ? Colors.green.shade800
-                            : Colors.red.shade800,
+                        _isNightTime
+                            ? Icons.nights_stay
+                            : (_isInShadedArea
+                                ? Icons.check_circle
+                                : Icons.warning_amber_rounded),
+                        color: _isNightTime
+                            ? Colors.indigo.shade800
+                            : (_isInShadedArea
+                                ? Colors.green.shade800
+                                : Colors.red.shade800),
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _isInShadedArea
-                            ? AppLocalizations.of(context)!.shaded
-                            : AppLocalizations.of(context)!.unshaded,
+                        _isNightTime
+                            ? AppLocalizations.of(context)!.nighttime
+                            : (_isInShadedArea
+                                ? AppLocalizations.of(context)!.shaded
+                                : AppLocalizations.of(context)!.unshaded),
                         style: TextStyle(
-                          color: _isInShadedArea
-                              ? Colors.green.shade800
-                              : Colors.red.shade800,
+                          color: _isNightTime
+                              ? Colors.indigo.shade800
+                              : (_isInShadedArea
+                                  ? Colors.green.shade800
+                                  : Colors.red.shade800),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),

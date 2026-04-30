@@ -1,7 +1,7 @@
 {
   "@@locale": "ar",
   "appTitle": "درع الحرارة",
-  "monitorTitle": "مراقب درع الحرارة",
+  "monitorTitle": "درع الحرارة",
   "dashboard": "لوحة القيادة",
   "settings": "الإعدادات",
   "history": "السجل",
@@ -61,5 +61,6 @@
   "totalExposures": "إجمالي\nالتعرضات",
   "totalDuration": "إجمالي\nالمدة",
   "averageRisk": "متوسط\nالخطر",
-  "recentIncidents": "الأحداث الأخيرة"
+  "recentIncidents": "الأحداث الأخيرة",
+  "nighttime": "وقت الليل"
 }
