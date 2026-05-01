@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:heatshield/services/locale_provider.dart';
 import 'package:heatshield/services/server_connection_notifier.dart';
+import 'package:heatshield/services/time_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => HistoryService(prefs)),
         ChangeNotifierProvider(create: (_) => LocaleProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => TimeProvider()),
       ],
 
       child: const HeatShieldApp(),

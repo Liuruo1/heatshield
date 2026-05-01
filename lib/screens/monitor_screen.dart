@@ -14,6 +14,7 @@ import 'package:heatshield/services/history_service.dart';
 import 'package:heatshield/services/server_connection_notifier.dart';
 import 'package:heatshield/services/zoneDB_service.dart';
 import 'package:heatshield/services/watch_companion_service.dart';
+import 'package:heatshield/services/time_provider.dart';
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -143,6 +144,25 @@ class _MonitorScreenState extends State<MonitorScreen> {
     );
   }
 
+  TimeProvider? _timeProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tp = Provider.of<TimeProvider>(context);
+    if (_timeProvider != tp) {
+      _timeProvider?.removeListener(_onTimeChanged);
+      _timeProvider = tp;
+      _timeProvider?.addListener(_onTimeChanged);
+    }
+  }
+
+  void _onTimeChanged() {
+    if (mounted) {
+      _applyActiveZones();
+    }
+  }
+
   /// Loads heat zones from the local database and ensures initial seed data is present.
   Future<void> _loadZones() async {
     await _zoneDbService.ensureSeedData();
@@ -211,7 +231,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   void _applyActiveZones() {
     if (!mounted) return;
 
-    final now = DateTime.now();
+    final now = Provider.of<TimeProvider>(context, listen: false).now;
     final activeZones = _zones
         .where((zone) => zone.isActiveAt(now))
         .toList(growable: false);
@@ -278,7 +298,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Evaluates whether the user's initial location is within any active shaded zone
   /// and updates the exposure tracker accordingly.
   bool get _isNightTime {
-    final nowUtc = DateTime.now().toUtc();
+    final nowUtc = Provider.of<TimeProvider>(context, listen: false).now.toUtc();
     final nowMinute = nowUtc.hour * 60 + nowUtc.minute;
     return !ZonePolygon.isMinuteInWindow(
       nowMinute,
@@ -425,7 +445,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   double _calculateRiskRatio() {
     if (_isNightTime) return 0.0;
     
-    final now = DateTime.now();
+    final now = Provider.of<TimeProvider>(context, listen: false).now;
     final minuteOfDay = now.hour * 60 + now.minute;
     double timeFactor = 0.7;
 
@@ -686,6 +706,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _weatherTimer?.cancel();
     _thresholdTimer?.cancel();
     _exposureTimer?.cancel();
+    _timeProvider?.removeListener(_onTimeChanged);
     ServerConnectionNotifier.setRefreshAction(null);
     super.dispose();
   }
@@ -709,7 +730,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
               stream: Stream.periodic(const Duration(seconds: 1)),
               builder: (context, _) {
                 return Text(
-                  DateFormat('hh:mm a').format(DateTime.now()),
+                  DateFormat('hh:mm a').format(Provider.of<TimeProvider>(context).now),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.normal,

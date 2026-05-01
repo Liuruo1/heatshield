@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:heatshield/services/locale_provider.dart';
+import 'package:heatshield/services/time_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final timeProvider = Provider.of<TimeProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -120,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             child: Column(
               children: [
-ListTile(
+                ListTile(
                   leading: const Icon(Icons.language),
                   title: Text(
                     AppLocalizations.of(context)!.language,
@@ -169,6 +171,58 @@ ListTile(
                     style: TextStyle(color: Colors.grey),
                   ),
                   onTap: () {},
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Testing / Developer Options',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
+            ),
+          ),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.access_time),
+                  title: const Text(
+                    'Mock Time of Day',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(
+                    timeProvider.isMocking
+                        ? 'Mocked to ${TimeOfDay.fromDateTime(timeProvider.now).format(context)}'
+                        : 'Using actual system time',
+                  ),
+                  trailing: timeProvider.isMocking
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.red),
+                          onPressed: () {
+                            timeProvider.clearMockTime();
+                          },
+                        )
+                      : null,
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (picked != null) {
+                      timeProvider.setMockTime(picked);
+                    }
+                  },
                 ),
               ],
             ),
