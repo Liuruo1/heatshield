@@ -11,10 +11,18 @@ class ServerConnectionNotifier {
 
   static bool _isBannerVisible = false;
   static Future<void> Function()? _refreshAction;
+  static Future<void> Function()? _turboAction;
 
   static void setRefreshAction(Future<void> Function()? refreshAction) {
     _refreshAction = refreshAction;
   }
+
+  static void setTurboAction(Future<void> Function()? turboAction) {
+    _turboAction = turboAction;
+  }
+
+  static Future<void> Function()? get turboAction => _turboAction;
+  static Future<void> Function()? get refreshAction => _refreshAction;
 
   static void clearNoConnectionError() {
     if (!_isBannerVisible) {

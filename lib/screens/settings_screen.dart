@@ -4,6 +4,7 @@ import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:heatshield/services/locale_provider.dart';
 import 'package:heatshield/services/time_provider.dart';
+import 'package:heatshield/services/server_connection_notifier.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
   bool _hapticFeedback = true;
+  bool _isRefreshing = false;
   SharedPreferences? _prefs;
 
   @override
@@ -221,6 +223,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                     if (picked != null) {
                       timeProvider.setMockTime(picked);
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                // Turbo Mode — fast-forwards exposure by +5 min per tap
+                ListTile(
+                  leading: const Icon(Icons.bolt, color: Colors.orange),
+                  title: const Text(
+                    'Turbo Mode (+5 min exposure)',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(
+                    ServerConnectionNotifier.turboAction != null
+                        ? 'Tap to add +5 min of simulated sun exposure'
+                        : 'Open the Monitor screen first',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  enabled: ServerConnectionNotifier.turboAction != null,
+                  onTap: () async {
+                    final action = ServerConnectionNotifier.turboAction;
+                    if (action == null) return;
+                    final messenger = ScaffoldMessenger.of(context);
+                    await action();
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('⚡ +5 min exposure added'),
+                          backgroundColor: Colors.deepOrange,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                // Refresh from Server — re-syncs zones and weather
+                ListTile(
+                  leading: _isRefreshing
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync, color: Colors.teal),
+                  title: const Text(
+                    'Refresh from Server',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(
+                    ServerConnectionNotifier.refreshAction != null
+                        ? 'Re-sync zones and weather data'
+                        : 'Open the Monitor screen first',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  enabled:
+                      !_isRefreshing &&
+                      ServerConnectionNotifier.refreshAction != null,
+                  onTap: () async {
+                    final action = ServerConnectionNotifier.refreshAction;
+                    if (action == null) return;
+                    final messenger = ScaffoldMessenger.of(context);
+                    setState(() => _isRefreshing = true);
+                    try {
+                      await action();
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('✅ Server data refreshed'),
+                            backgroundColor: Colors.teal,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('❌ Refresh failed: $e'),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) setState(() => _isRefreshing = false);
                     }
                   },
                 ),

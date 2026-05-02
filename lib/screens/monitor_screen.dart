@@ -106,6 +106,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   void initState() {
     super.initState();
     ServerConnectionNotifier.setRefreshAction(_refreshServerConnection);
+    ServerConnectionNotifier.setTurboAction(_applyTurboStep);
     _zoneUpdatesSubscription = ZoneDbService.updates.listen((_) {
       _loadZones();
     });
@@ -696,6 +697,27 @@ class _MonitorScreenState extends State<MonitorScreen> {
     return isInside;
   }
 
+  /// Applies a single turbo step: enables debug mode (if not already on) and
+  /// adds +5 minutes of simulated exposure. Exposed as a static callback so
+  /// the Settings screen can trigger it without direct widget access.
+  Future<void> _applyTurboStep() async {
+    if (!mounted) return;
+    setState(() {
+      _debugMode = true;
+      _exposureSeconds += 300;
+      final risk = _calculateRiskRatio();
+      if (_currentTempValue != null) {
+        _maxTempDuringExposure = _maxTempDuringExposure == null
+            ? _currentTempValue
+            : math.max(_maxTempDuringExposure!, _currentTempValue!);
+      }
+      _maxRiskDuringExposure = math.max(_maxRiskDuringExposure, risk);
+      if (_exposureSeconds > _safeExposureSeconds || risk >= 0.8) {
+        _showHeatWarning = true;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
@@ -708,6 +730,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _exposureTimer?.cancel();
     _timeProvider?.removeListener(_onTimeChanged);
     ServerConnectionNotifier.setRefreshAction(null);
+    ServerConnectionNotifier.setTurboAction(null);
     super.dispose();
   }
 
@@ -745,68 +768,6 @@ class _MonitorScreenState extends State<MonitorScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
-          // Debug: fast-forward exposure to trigger critical risk alerts
-          IconButton(
-            tooltip: _debugMode
-                ? 'Turbo ON — tap to add +5 min exposure'
-                : 'Enable Turbo Test Mode',
-            icon: Icon(
-              Icons.bolt,
-              color: _debugMode ? Colors.yellow : Colors.white54,
-            ),
-            onPressed: () {
-              if (!_debugMode) {
-                setState(() => _debugMode = true);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      '⚡ Turbo mode ON — tap ⚡ to add +5 min exposure',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              } else {
-                // Each subsequent tap adds 5 minutes of exposure
-                setState(() {
-                  _exposureSeconds += 300;
-                  final risk = _calculateRiskRatio();
-                  if (_currentTempValue != null) {
-                    _maxTempDuringExposure = _maxTempDuringExposure == null
-                        ? _currentTempValue
-                        : math.max(_maxTempDuringExposure!, _currentTempValue!);
-                  }
-                  _maxRiskDuringExposure = math.max(
-                    _maxRiskDuringExposure,
-                    risk,
-                  );
-                  if (_exposureSeconds > _safeExposureSeconds || risk >= 0.8) {
-                    _showHeatWarning = true;
-                  }
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('⚡ +5 min — exposure: $_formattedExposure'),
-                    backgroundColor: Colors.deepOrange,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-          ),
-          IconButton(
-            tooltip: 'Refresh from server',
-            icon: const Icon(Icons.refresh),
-            onPressed: _isRefreshingServer
-                ? null
-                : () async {
-                    try {
-                      await _refreshServerConnection();
-                    } catch (e) {
-                      debugPrint('Manual refresh failed: $e');
-                    }
-                  },
-          ),
           Center(
             child: Container(
               margin: const EdgeInsets.only(right: 16),
