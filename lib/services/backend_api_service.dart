@@ -76,6 +76,7 @@ class BackendZone {
   final int? startMinuteOfDay;
   final int? endMinuteOfDay;
   final double tempDeltaC;
+  final double buildingHeight;
   final List<LatLng> points;
 
   const BackendZone({
@@ -87,6 +88,7 @@ class BackendZone {
     required this.startMinuteOfDay,
     required this.endMinuteOfDay,
     required this.tempDeltaC,
+    required this.buildingHeight,
     required this.points,
   });
 
@@ -101,6 +103,7 @@ class BackendZone {
       startMinuteOfDay: json['start_minute_of_day'] as int?,
       endMinuteOfDay: json['end_minute_of_day'] as int?,
       tempDeltaC: (json['temp_delta_c'] as num).toDouble(),
+      buildingHeight: (json['building_height'] as num?)?.toDouble() ?? 15.0,
       points: pointsJson
           .map(
             (item) => LatLng(
@@ -238,6 +241,7 @@ class BackendApiService {
     int? startMinuteOfDay,
     int? endMinuteOfDay,
     double tempDeltaC = 0.0,
+    double buildingHeight = 15.0,
   }) async {
     final uri = Uri.parse('$_baseUrl/v1/zones');
     final body = json.encode({
@@ -248,6 +252,7 @@ class BackendApiService {
       'start_minute_of_day': startMinuteOfDay,
       'end_minute_of_day': endMinuteOfDay,
       'temp_delta_c': tempDeltaC,
+      'building_height': buildingHeight,
       'points': points
           .map((point) => {'lat': point.latitude, 'lng': point.longitude})
           .toList(),

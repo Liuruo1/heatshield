@@ -25,7 +25,7 @@
   "language": "Language",
   "privacyPolicy": "Privacy Policy",
   "about": "About HeatShield",
-  "nearestSafeZone": "Nearest Safe Zone",
+  "nearestSafeZone": "Nearest SafeZone",
   "criticalHeatRisk": "CRITICAL HEAT RISK",
   "seekShadeImmediately": "You have been in direct sunlight for too long. Seek shade immediately.",
   "routingToShade": "Routing to nearest shaded zone...",
@@ -62,5 +62,8 @@
   "totalDuration": "Total\nDuration",
   "averageRisk": "Average\nRisk",
   "recentIncidents": "Recent Incidents",
-  "nighttime": "Nighttime"
+  "nighttime": "Nighttime",
+  "nearestWaterPoint": "Nearest Water",
+  "routingToWater": "Routing to nearest water point...",
+  "noWaterPointFound": "No water point found nearby."
 }

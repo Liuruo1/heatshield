@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:heatshield/l10n/app_localizations.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +15,9 @@ import 'package:heatshield/services/server_connection_notifier.dart';
 import 'package:heatshield/services/zoneDB_service.dart';
 import 'package:heatshield/services/watch_companion_service.dart';
 import 'package:heatshield/services/time_provider.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+
+enum SafetyStatus { shaded, exposedRoof, unshaded }
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -32,9 +35,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
   LatLng? _currentLocation =
       _initialPosition; // Initialize so the button is always visible
   StreamSubscription<Position>? _positionStreamSubscription;
-  bool _isInShadedArea = false;
+  SafetyStatus _safetyStatus = SafetyStatus.unshaded;
+  bool get _isInShadedArea => _safetyStatus == SafetyStatus.shaded;
   bool _isFollowingLocation = true;
   List<LatLng> _routePoints = [];
+  double? _groundAltitude;
+  double? _currentAltitude;
+  double _mockAltitudeOffset = 0.0;
   String _currentTemp = '--°C';
   int? _currentTempValue;
   Timer? _weatherTimer;
@@ -44,9 +51,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _watchSyncTimer;
   bool _isRefreshingServer = false;
 
+  // Compass tracking
+  double _heading = 0.0;
+  StreamSubscription<CompassEvent>? _compassSubscription;
+
   // Emergency escalation tracking
-  int? _criticalRiskStartExposureSeconds; // exposure counter snapshot when critical began
-  LatLng? _criticalRiskStartLocation;     // location snapshot when critical began
+  int?
+  _criticalRiskStartExposureSeconds; // exposure counter snapshot when critical began
+  LatLng? _criticalRiskStartLocation; // location snapshot when critical began
   bool _emergencyEscalationTriggered = false;
   // Escalates after this many extra seconds in critical risk at the same spot
   // (10 minutes = 600 seconds beyond the safe-exposure limit)
@@ -107,6 +119,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
     super.initState();
     ServerConnectionNotifier.setRefreshAction(_refreshServerConnection);
     ServerConnectionNotifier.setTurboAction(_applyTurboStep);
+    ServerConnectionNotifier.setAltitudeAction((offset) {
+      if (!mounted) return;
+      setState(() {
+        _mockAltitudeOffset = offset;
+        _recalculateAltitudeSafeZone();
+      });
+    });
     _zoneUpdatesSubscription = ZoneDbService.updates.listen((_) {
       _loadZones();
     });
@@ -132,6 +151,15 @@ class _MonitorScreenState extends State<MonitorScreen> {
       const Duration(minutes: 15),
       (_) => _fetchWeather(),
     );
+
+    // Compass events
+    _compassSubscription = FlutterCompass.events?.listen((event) {
+      if (mounted) {
+        setState(() {
+          _heading = event.heading ?? 0.0;
+        });
+      }
+    });
   }
 
   /// Syncs the current heat status to the watch via the companion service.
@@ -233,11 +261,33 @@ class _MonitorScreenState extends State<MonitorScreen> {
     if (!mounted) return;
 
     final now = Provider.of<TimeProvider>(context, listen: false).now;
+
+    // Calculate current simulated altitude for filtering
+    final currentAlt = (_groundAltitude != null && _currentAltitude != null)
+        ? (_groundAltitude! + _mockAltitudeOffset)
+        : null;
+
     final activeZones = _zones
         .where((zone) => zone.isActiveAt(now))
         .toList(growable: false);
+
     final activePolygons = activeZones
-        .map((zone) => zone.toPolygon())
+        .map((zone) {
+          if (zone.type == ZoneType.shaded &&
+              currentAlt != null &&
+              _groundAltitude != null) {
+            final relativeHeight = currentAlt - _groundAltitude!;
+            if (relativeHeight >= zone.buildingHeight) {
+              return Polygon(
+                points: zone.points,
+                color: Colors.orange.withOpacity(0.3),
+                borderColor: Colors.orange,
+                borderStrokeWidth: 2,
+              );
+            }
+          }
+          return zone.toPolygon();
+        })
         .toList(growable: false);
 
     setState(() {
@@ -299,7 +349,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Evaluates whether the user's initial location is within any active shaded zone
   /// and updates the exposure tracker accordingly.
   bool get _isNightTime {
-    final nowUtc = Provider.of<TimeProvider>(context, listen: false).now.toUtc();
+    final nowUtc = Provider.of<TimeProvider>(
+      context,
+      listen: false,
+    ).now.toUtc();
     final nowMinute = nowUtc.hour * 60 + nowUtc.minute;
     return !ZonePolygon.isMinuteInWindow(
       nowMinute,
@@ -310,16 +363,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   void _checkInitialLocation() {
     if (_currentLocation != null && _zonesReady) {
-      bool inShaded = false;
-      for (final zone in _activeZones.where((z) => z.type == ZoneType.shaded)) {
-        if (_isPointInPolygon(_currentLocation!, zone.points)) {
-          inShaded = true;
-          break;
-        }
-      }
-      _isInShadedArea = inShaded;
+      SafetyStatus status = _getSafetyStatusForPoint(_currentLocation!);
+      _safetyStatus = status;
       _isInAlharam = _isPointInPolygon(_currentLocation!, _alharamZonePoints);
-      _updateExposureTimer(inShaded);
+      _updateExposureTimer(_isInShadedArea);
     }
   }
 
@@ -392,7 +439,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
               }
 
               // Check whether the user has moved since the critical window opened
-              final bool hasNotMoved = _criticalRiskStartLocation == null ||
+              final bool hasNotMoved =
+                  _criticalRiskStartLocation == null ||
                   _currentLocation == null ||
                   const Distance().distance(
                         _currentLocation!,
@@ -445,7 +493,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// and duration of continuous sun exposure.
   double _calculateRiskRatio() {
     if (_isNightTime) return 0.0;
-    
+
     final now = Provider.of<TimeProvider>(context, listen: false).now;
     final minuteOfDay = now.hour * 60 + now.minute;
     double timeFactor = 0.7;
@@ -650,29 +698,66 @@ class _MonitorScreenState extends State<MonitorScreen> {
           if (!mounted) return;
           final newLoc = LatLng(position.latitude, position.longitude);
 
-          // Check if inside any shaded area
-          bool inShaded = false;
-          for (final zone in _activeZones.where(
-            (z) => z.type == ZoneType.shaded,
-          )) {
-            if (_isPointInPolygon(newLoc, zone.points)) {
-              inShaded = true;
-              break;
-            }
-          }
+          _currentAltitude = position.altitude + _mockAltitudeOffset;
+          _groundAltitude ??= position.altitude;
 
           setState(() {
             _currentLocation = newLoc;
-            _isInShadedArea = inShaded;
+          });
+
+          // This recalculates polygons if altitude crossed a threshold
+          _applyActiveZones();
+
+          SafetyStatus status = _getSafetyStatusForPoint(newLoc);
+
+          setState(() {
+            _currentLocation = newLoc;
+            _safetyStatus = status;
             _isInAlharam = _isPointInPolygon(newLoc, _alharamZonePoints);
-            _updateExposureTimer(inShaded);
-            if (inShaded) {
+            _updateExposureTimer(_isInShadedArea);
+            if (_isInShadedArea) {
               _routePoints.clear();
             } else if (_routePoints.isNotEmpty) {
-              _routePoints[0] = newLoc;
+              final distanceToDestination = const Distance().distance(
+                newLoc,
+                _routePoints.last,
+              );
+              if (distanceToDestination < 10.0) {
+                _routePoints.clear();
+              } else {
+                _routePoints[0] = newLoc;
+              }
             }
           });
         });
+  }
+
+  void _recalculateAltitudeSafeZone() {
+    _groundAltitude ??= 0.0;
+    _currentAltitude = _groundAltitude! + _mockAltitudeOffset;
+    _applyActiveZones();
+  }
+
+  /// Checks if the point is in a shaded zone AND safely below its building height
+  SafetyStatus _getSafetyStatusForPoint(LatLng point) {
+    final currentAlt = (_groundAltitude != null && _currentAltitude != null)
+        ? (_groundAltitude! + _mockAltitudeOffset)
+        : null;
+
+    bool onRoof = false;
+    for (final zone in _activeZones.where((z) => z.type == ZoneType.shaded)) {
+      if (_isPointInPolygon(point, zone.points)) {
+        if (currentAlt != null && _groundAltitude != null) {
+          final relativeHeight = currentAlt - _groundAltitude!;
+          if (relativeHeight >= zone.buildingHeight) {
+            onRoof = true;
+            continue; // Keep checking other shaded zones, maybe one is taller
+          }
+        }
+        return SafetyStatus.shaded; // Safe
+      }
+    }
+    return onRoof ? SafetyStatus.exposedRoof : SafetyStatus.unshaded;
   }
 
   /// Standard Ray-Casting algorithm to determine if a given coordinate point
@@ -728,9 +813,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _weatherTimer?.cancel();
     _thresholdTimer?.cancel();
     _exposureTimer?.cancel();
+    _compassSubscription?.cancel();
     _timeProvider?.removeListener(_onTimeChanged);
     ServerConnectionNotifier.setRefreshAction(null);
     ServerConnectionNotifier.setTurboAction(null);
+    ServerConnectionNotifier.setAltitudeAction(null);
     super.dispose();
   }
 
@@ -753,7 +840,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
               stream: Stream.periodic(const Duration(seconds: 1)),
               builder: (context, _) {
                 return Text(
-                  DateFormat('hh:mm a').format(Provider.of<TimeProvider>(context).now),
+                  DateFormat(
+                    'hh:mm a',
+                  ).format(Provider.of<TimeProvider>(context).now),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.normal,
@@ -818,26 +907,26 @@ class _MonitorScreenState extends State<MonitorScreen> {
               },
               onTap: (tapPosition, point) {
                 // Update current fake location
-                bool inShaded = false;
-                for (final zone in _activeZones.where(
-                  (z) => z.type == ZoneType.shaded,
-                )) {
-                  if (_isPointInPolygon(point, zone.points)) {
-                    inShaded = true;
-                    break;
-                  }
-                }
+                SafetyStatus status = _getSafetyStatusForPoint(point);
 
                 setState(() {
                   _currentLocation = point;
-                  _isInShadedArea = inShaded;
+                  _safetyStatus = status;
                   _isInAlharam = _isPointInPolygon(point, _alharamZonePoints);
-                  _updateExposureTimer(inShaded);
+                  _updateExposureTimer(_isInShadedArea);
                   _isFollowingLocation = false;
-                  if (inShaded) {
+                  if (_isInShadedArea) {
                     _routePoints.clear();
                   } else if (_routePoints.isNotEmpty) {
-                    _routePoints[0] = point;
+                    final distanceToDestination = const Distance().distance(
+                      point,
+                      _routePoints.last,
+                    );
+                    if (distanceToDestination < 10.0) {
+                      _routePoints.clear();
+                    } else {
+                      _routePoints[0] = point;
+                    }
                   }
                 });
 
@@ -845,13 +934,6 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 final lat = point.latitude.toStringAsFixed(5);
                 final lng = point.longitude.toStringAsFixed(5);
                 debugPrint('Tapped: $lat, $lng');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Coordinates: $lat, $lng'),
-                    duration: const Duration(seconds: 4),
-                    action: SnackBarAction(label: 'OK', onPressed: () {}),
-                  ),
-                );
               },
             ),
             children: [
@@ -875,16 +957,30 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   markers: [
                     Marker(
                       point: _currentLocation!,
-                      width: 40,
-                      height: 40,
-                      child: const Stack(
+                      width: 80,
+                      height: 80,
+                      child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Icon(Icons.circle, color: Colors.white, size: 24),
-                          Icon(
-                            Icons.circle,
-                            color: Colors.blueAccent,
-                            size: 20,
+                          // Direction vision cone
+                          Transform.rotate(
+                            angle: _heading * (math.pi / 180),
+                            child: CustomPaint(
+                              size: const Size(80, 80),
+                              painter: _VisionConePainter(),
+                            ),
+                          ),
+                          // User dot
+                          const Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(Icons.circle, color: Colors.white, size: 24),
+                              Icon(
+                                Icons.circle,
+                                color: Colors.blueAccent,
+                                size: 20,
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1062,9 +1158,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   decoration: BoxDecoration(
                     color: _isNightTime
                         ? Colors.indigo.shade100
-                        : (_isInShadedArea
-                            ? Colors.green.shade100
-                            : Colors.red.shade100),
+                        : (_safetyStatus == SafetyStatus.shaded
+                              ? Colors.green.shade100
+                              : (_safetyStatus == SafetyStatus.exposedRoof
+                                    ? Colors.orange.shade100
+                                    : Colors.red.shade100)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -1072,29 +1170,39 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       Icon(
                         _isNightTime
                             ? Icons.nights_stay
-                            : (_isInShadedArea
-                                ? Icons.check_circle
-                                : Icons.warning_amber_rounded),
+                            : (_safetyStatus == SafetyStatus.shaded
+                                  ? Icons.check_circle
+                                  : (_safetyStatus == SafetyStatus.exposedRoof
+                                        ? Icons.vertical_align_top
+                                        : Icons.warning_amber_rounded)),
                         color: _isNightTime
                             ? Colors.indigo.shade800
-                            : (_isInShadedArea
-                                ? Colors.green.shade800
-                                : Colors.red.shade800),
+                            : (_safetyStatus == SafetyStatus.shaded
+                                  ? Colors.green.shade800
+                                  : (_safetyStatus == SafetyStatus.exposedRoof
+                                        ? Colors.orange.shade800
+                                        : Colors.red.shade800)),
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         _isNightTime
                             ? AppLocalizations.of(context)!.nighttime
-                            : (_isInShadedArea
-                                ? AppLocalizations.of(context)!.shaded
-                                : AppLocalizations.of(context)!.unshaded),
+                            : (_safetyStatus == SafetyStatus.shaded
+                                  ? AppLocalizations.of(context)!.shaded
+                                  : (_safetyStatus == SafetyStatus.exposedRoof
+                                        ? 'Exposed(roof)'
+                                        : AppLocalizations.of(
+                                            context,
+                                          )!.unshaded)),
                         style: TextStyle(
                           color: _isNightTime
                               ? Colors.indigo.shade800
-                              : (_isInShadedArea
-                                  ? Colors.green.shade800
-                                  : Colors.red.shade800),
+                              : (_safetyStatus == SafetyStatus.shaded
+                                    ? Colors.green.shade800
+                                    : (_safetyStatus == SafetyStatus.exposedRoof
+                                          ? Colors.orange.shade800
+                                          : Colors.red.shade800)),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1162,10 +1270,28 @@ class _MonitorScreenState extends State<MonitorScreen> {
                         final l10n = AppLocalizations.of(context)!;
                         if (_currentLocation == null) return;
                         if (_isInShadedArea) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(l10n.alreadyInShade),
-                            ),
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) {
+                              Future.delayed(const Duration(seconds: 1), () {
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              });
+                              return AlertDialog(
+                                title: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info,
+                                      color: Colors.teal.shade600,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(l10n.nearestSafeZone),
+                                  ],
+                                ),
+                                content: Text(l10n.alreadyInShade),
+                              );
+                            },
                           );
                           return;
                         }
@@ -1192,15 +1318,33 @@ class _MonitorScreenState extends State<MonitorScreen> {
                         if (nearestPoint != null) {
                           setState(() {
                             _routePoints = [_currentLocation!, nearestPoint!];
-                            _isFollowingLocation = false;
+                            _isFollowingLocation = true;
                           });
 
-                          _mapController.move(nearestPoint, 17.5);
+                          _mapController.move(_currentLocation!, 17.5);
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(l10n.routingToShade),
-                            ),
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) {
+                              Future.delayed(const Duration(seconds: 1), () {
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              });
+                              return AlertDialog(
+                                title: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.directions_walk,
+                                      color: Colors.teal.shade600,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(l10n.nearestSafeZone),
+                                  ],
+                                ),
+                                content: Text(l10n.routingToShade),
+                              );
+                            },
                           );
                         }
                       },
@@ -1208,7 +1352,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       label: Text(
                         AppLocalizations.of(context)!.nearestSafeZone,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1224,11 +1368,108 @@ class _MonitorScreenState extends State<MonitorScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
+                // --- Nearest Water Point button ---
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        final l10n = AppLocalizations.of(context)!;
+                        if (_currentLocation == null) return;
+
+                        LatLng? nearestWater;
+                        double minWaterDist = double.infinity;
+                        final dist = const Distance();
+
+                        for (final wp in _waterPoints) {
+                          final d = dist.distance(_currentLocation!, wp);
+                          if (d < minWaterDist) {
+                            minWaterDist = d;
+                            nearestWater = wp;
+                          }
+                        }
+
+                        if (nearestWater != null) {
+                          setState(() {
+                            _routePoints = [_currentLocation!, nearestWater!];
+                            _isFollowingLocation = true;
+                          });
+                          _mapController.move(_currentLocation!, 17.5);
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) {
+                              Future.delayed(const Duration(seconds: 1), () {
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              });
+                              return AlertDialog(
+                                title: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.water_drop,
+                                      color: Colors.blue.shade600,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(l10n.nearestWaterPoint),
+                                  ],
+                                ),
+                                content: Text(l10n.routingToWater),
+                              );
+                            },
+                          );
+                        } else {
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) {
+                              Future.delayed(const Duration(seconds: 1), () {
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              });
+                              return AlertDialog(
+                                title: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.warning,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(l10n.nearestWaterPoint),
+                                  ],
+                                ),
+                                content: Text(l10n.noWaterPointFound),
+                              );
+                            },
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.water_drop, size: 22),
+                      label: Text(
+                        AppLocalizations.of(context)!.nearestWaterPoint,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 4,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   flex: 1,
                   child: SizedBox(
                     height: 56,
-                    child: ElevatedButton.icon(
+                    child: ElevatedButton(
                       onPressed: () {
                         final l10n = AppLocalizations.of(context)!;
                         showDialog(
@@ -1283,8 +1524,6 @@ class _MonitorScreenState extends State<MonitorScreen> {
                           },
                         );
                       },
-                      icon: const Icon(Icons.emergency),
-                      label: const Text('SOS'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red.shade600,
                         foregroundColor: Colors.white,
@@ -1293,6 +1532,20 @@ class _MonitorScreenState extends State<MonitorScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 4,
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.emergency, size: 24),
+                          SizedBox(height: 2),
+                          Text(
+                            'SOS',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1448,6 +1701,7 @@ class _EscalationDialog extends StatefulWidget {
   final VoidCallback onCallEmergency;
   final VoidCallback onNavigateToShade;
   final VoidCallback onDismiss;
+
   /// Fired automatically when the 3-minute no-interaction window expires.
   /// The dialog pops itself first, then calls this.
   final VoidCallback onAutoDispatch;
@@ -1531,8 +1785,8 @@ class _EscalationDialogState extends State<_EscalationDialog> {
     final Color countdownColor = fraction > 0.5
         ? Colors.greenAccent.shade400
         : fraction > 0.25
-            ? Colors.amber.shade300
-            : Colors.red.shade300;
+        ? Colors.amber.shade300
+        : Colors.red.shade300;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1708,4 +1962,27 @@ class _EscalationDialogState extends State<_EscalationDialog> {
       ),
     );
   }
+}
+
+class _VisionConePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.blueAccent.withValues(alpha: 0.3)
+      ..style = PaintingStyle.fill;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final path = Path();
+    path.moveTo(center.dx, center.dy);
+    // Point pointing forward (up, to y=0)
+    path.lineTo(center.dx - 25, 0);
+    // Slight curve at the far edge
+    path.quadraticBezierTo(center.dx, -10, center.dx + 25, 0);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

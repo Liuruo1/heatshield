@@ -251,7 +251,7 @@ abstract class AppLocalizations {
   /// No description provided for @nearestSafeZone.
   ///
   /// In en, this message translates to:
-  /// **'Nearest Safe Zone'**
+  /// **'Nearest SafeZone'**
   String get nearestSafeZone;
 
   /// No description provided for @criticalHeatRisk.
@@ -475,6 +475,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nighttime'**
   String get nighttime;
+
+  /// No description provided for @nearestWaterPoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearest Water'**
+  String get nearestWaterPoint;
+
+  /// No description provided for @routingToWater.
+  ///
+  /// In en, this message translates to:
+  /// **'Routing to nearest water point...'**
+  String get routingToWater;
+
+  /// No description provided for @noWaterPointFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No water point found nearby.'**
+  String get noWaterPointFound;
 }
 
 class _AppLocalizationsDelegate

@@ -12,6 +12,7 @@ class ServerConnectionNotifier {
   static bool _isBannerVisible = false;
   static Future<void> Function()? _refreshAction;
   static Future<void> Function()? _turboAction;
+  static void Function(double)? _altitudeAction;
 
   static void setRefreshAction(Future<void> Function()? refreshAction) {
     _refreshAction = refreshAction;
@@ -21,8 +22,13 @@ class ServerConnectionNotifier {
     _turboAction = turboAction;
   }
 
+  static void setAltitudeAction(void Function(double)? altitudeAction) {
+    _altitudeAction = altitudeAction;
+  }
+
   static Future<void> Function()? get turboAction => _turboAction;
   static Future<void> Function()? get refreshAction => _refreshAction;
+  static void Function(double)? get altitudeAction => _altitudeAction;
 
   static void clearNoConnectionError() {
     if (!_isBannerVisible) {
