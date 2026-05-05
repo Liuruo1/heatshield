@@ -21,7 +21,7 @@ from .config import (
     USE_DYNAMIC_DAYLIGHT_WINDOW,
 )
 from .db import Base, SessionLocal, engine, get_db
-from .models import Incident, ModelBucket, Zone, ZonePoint
+from .models import Incident, ModelBucket, Zone, ZonePoint, EMReport
 from .schemas import (
     DaylightWindowOut,
     EffectiveWeatherOut,
@@ -31,6 +31,9 @@ from .schemas import (
     ZoneCreate,
     ZoneOut,
     ZoneUpdate,
+    EMReportCreate,
+    EMReportListOut,
+    EMReportOut,
 )
 
 app = FastAPI(title="HeatShield API", version="1.0.0")
@@ -65,6 +68,7 @@ def root(db: Session = Depends(get_db)):
     incident_count = db.query(Incident).count()
     bucket_count = db.query(ModelBucket).count()
     latest_incident = db.query(Incident).order_by(Incident.created_at.desc()).first()
+    reports = db.query(EMReport).filter(EMReport.taken_care.is_(False)).all()
 
     return {
         "service": "HeatShield API",
@@ -78,6 +82,7 @@ def root(db: Session = Depends(get_db)):
             "incidents": incident_count,
             "model_buckets": bucket_count,
             "latest_incident_at": latest_incident.created_at.isoformat() if latest_incident else None,
+            "emreports":reports,
         },
     }
 
@@ -524,4 +529,83 @@ def exposure_threshold(
         rule_prediction_seconds=round(rule_pred, 2),
         blend_alpha=round(alpha, 4),
         sample_count=samples,
+    )
+
+@app.post("/v1/create-report", response_model=EMReportOut)
+def create_report(payload: EMReportCreate, db: Session = Depends(get_db)):
+    report = EMReport(
+        user_id=payload.user_id,
+        created_at=payload.created_at or datetime.utcnow(),
+        location_lat=payload.location_lat,
+        location_lng=payload.location_lng,
+        incident_id=payload.incident_id,
+        taken_care=payload.taken_care,
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    return EMReportOut(
+        id=report.id,
+        user_id=report.user_id,
+        created_at=report.created_at,
+        location_lat=report.location_lat,
+        location_lng=report.location_lng,
+        taken_care=report.taken_care,
+        incident_id=report.incident_id,
+    )
+
+
+@app.get("/v1/get-report/{report_id}", response_model=EMReportOut)
+def get_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.get(EMReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return EMReportOut(
+        id=report.id,
+        user_id=report.user_id,
+        created_at=report.created_at,
+        location_lat=report.location_lat,
+        location_lng=report.location_lng,
+        taken_care=report.taken_care,
+        incident_id=report.incident_id,
+    )
+
+
+@app.get("/v1/getall-reports", response_model=list[EMReportOut])
+def get_all_reports(db: Session = Depends(get_db)):
+    reports = db.query(EMReport).order_by(EMReport.created_at.desc()).all()
+    return [
+        EMReportOut(
+            id=report.id,
+            user_id=report.user_id,
+            created_at=report.created_at,
+            location_lat=report.location_lat,
+            location_lng=report.location_lng,
+            taken_care=report.taken_care,
+            incident_id=report.incident_id,
+        )
+        for report in reports
+    ]
+
+
+@app.put("/v1/complete-report", response_model=EMReportOut, dependencies=[Depends(_require_api_key)])
+def complete_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.get(EMReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.taken_care = True
+    db.commit()
+    db.refresh(report)
+
+    return EMReportOut(
+        id=report.id,
+        user_id=report.user_id,
+        created_at=report.created_at,
+        location_lat=report.location_lat,
+        location_lng=report.location_lng,
+        taken_care=report.taken_care,
+        incident_id=report.incident_id,
     )

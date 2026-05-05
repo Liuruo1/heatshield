@@ -75,7 +75,6 @@ class WatchCompanionService {
       });
       return sent ?? false;
     } catch (e) {
-      print('Error sending heat status to watch: $e');
       return false;
     }
   }

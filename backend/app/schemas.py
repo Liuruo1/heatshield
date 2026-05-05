@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Point(BaseModel):
@@ -80,3 +80,24 @@ class DaylightWindowOut(BaseModel):
     sunrise_utc: datetime | None = None
     sunset_utc: datetime | None = None
     source: str
+
+class EMReportCreate(BaseModel):
+    user_id: str = "default"
+    created_at: datetime | None = None
+    location_lat: float 
+    location_lng: float
+    incident_id: int | None = None
+    taken_care: bool = False
+
+class EMReportListOut(BaseModel):
+    id: int
+    created_at: datetime
+    location_lat: float 
+    location_lng: float
+    taken_care: bool
+    incident_id: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class EMReportOut(EMReportListOut):
+    pass
