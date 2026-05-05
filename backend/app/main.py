@@ -21,7 +21,7 @@ from .config import (
     USE_DYNAMIC_DAYLIGHT_WINDOW,
 )
 from .db import Base, SessionLocal, engine, get_db
-from .models import Incident, ModelBucket, Zone, ZonePoint
+from .models import Incident, ModelBucket, Zone, ZonePoint, EMReport
 from .schemas import (
     DaylightWindowOut,
     EffectiveWeatherOut,
@@ -30,7 +30,10 @@ from .schemas import (
     IncidentOut,
     ZoneCreate,
     ZoneOut,
-    ZoneUpdate,
+    ZoneUpdate
+    EMReportCreate,
+    EMReportListOut,
+    EMReportOut,
 )
 
 app = FastAPI(title="HeatShield API", version="1.0.0")
@@ -65,6 +68,7 @@ def root(db: Session = Depends(get_db)):
     incident_count = db.query(Incident).count()
     bucket_count = db.query(ModelBucket).count()
     latest_incident = db.query(Incident).order_by(Incident.created_at.desc()).first()
+    reports = db.query(EMReport).filter(EMReport.taken_care.is_(False)).all()
 
     return {
         "service": "HeatShield API",
@@ -78,6 +82,7 @@ def root(db: Session = Depends(get_db)):
             "incidents": incident_count,
             "model_buckets": bucket_count,
             "latest_incident_at": latest_incident.created_at.isoformat() if latest_incident else None,
+            "emreports":reports,
         },
     }
 

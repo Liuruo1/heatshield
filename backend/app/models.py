@@ -44,6 +44,17 @@ class Incident(Base):
     shaded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+class EMReport(Base):
+    __tablename__ = "em_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    location_lat: Mapped[float] = mapped_column(Float, nullable=False)
+    location_lng: Mapped[float] = mapped_column(Float, nullable=False)
+    incident_id: Mapped[int | None] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"))
+    incident: Mapped["Incident"] = relationship("Incident")
+    taken_care: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 class ModelBucket(Base):
     __tablename__ = "model_buckets"
