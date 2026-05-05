@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment Variables
+.env
+
+# Database Files
+*.db
+*.db.bak
+*.sqlite3

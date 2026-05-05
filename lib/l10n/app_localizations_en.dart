@@ -84,7 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get about => 'About HeatShield';
 
   @override
-  String get nearestSafeZone => 'Nearest Safe Zone';
+  String get nearestSafeZone => 'Nearest SafeZone';
 
   @override
   String get criticalHeatRisk => 'CRITICAL HEAT RISK';
@@ -204,4 +204,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nighttime => 'Nighttime';
+
+  @override
+  String get nearestWaterPoint => 'Nearest Water';
+
+  @override
+  String get routingToWater => 'Routing to nearest water point...';
+
+  @override
+  String get noWaterPointFound => 'No water point found nearby.';
 }

@@ -258,6 +258,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 const Divider(height: 1),
+                // Altitude Mocking
+                ListTile(
+                  leading: const Icon(Icons.height, color: Colors.blueAccent),
+                  title: const Text(
+                    'Simulate Roof Elevation (+50m)',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(
+                    ServerConnectionNotifier.altitudeAction != null
+                        ? 'Simulate being on a roof (Unsafe)'
+                        : 'Open the Monitor screen first',
+                  ),
+                  trailing: const Icon(Icons.upload),
+                  enabled: ServerConnectionNotifier.altitudeAction != null,
+                  onTap: () {
+                    final action = ServerConnectionNotifier.altitudeAction;
+                    if (action == null) return;
+                    action(50.0);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('🏔️ Simulated Roof Elevation (+50m)'),
+                        backgroundColor: Colors.blueAccent,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.vertical_align_bottom, color: Colors.green),
+                  title: const Text(
+                    'Reset Elevation (Ground)',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(
+                    ServerConnectionNotifier.altitudeAction != null
+                        ? 'Return to ground level (Safe)'
+                        : 'Open the Monitor screen first',
+                  ),
+                  trailing: const Icon(Icons.download),
+                  enabled: ServerConnectionNotifier.altitudeAction != null,
+                  onTap: () {
+                    final action = ServerConnectionNotifier.altitudeAction;
+                    if (action == null) return;
+                    action(0.0);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('🛣️ Reset to Ground Elevation'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
                 // Refresh from Server — re-syncs zones and weather
                 ListTile(
                   leading: _isRefreshing

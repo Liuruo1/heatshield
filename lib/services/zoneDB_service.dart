@@ -23,6 +23,7 @@ class ZonePolygon {
   final List<LatLng> points;
   final int? startMinuteOfDay;
   final int? endMinuteOfDay;
+  final double buildingHeight;
 
   ZonePolygon({
     this.id,
@@ -33,6 +34,7 @@ class ZonePolygon {
     this.borderAlpha = 0.8,
     this.startMinuteOfDay,
     this.endMinuteOfDay,
+    this.buildingHeight = 15.0,
   });
 
   Polygon toPolygon() {
@@ -118,7 +120,7 @@ class ZonePolygon {
 /// Allows adding, deleting, and retrieving geographic polygon data.
 class ZoneDbService {
   static const String _dbName = 'heatshield.db';
-  static const int _dbVersion = 2;
+  static const int _dbVersion = 3;
   static const String _zonesTable = 'zones';
   static const String _pointsTable = 'zone_points';
   static final StreamController<void> _updatesController =
@@ -150,6 +152,11 @@ class ZoneDbService {
             'ALTER TABLE $_zonesTable ADD COLUMN end_minute_of_day INTEGER',
           );
         }
+        if (oldVersion < 3) {
+          await db.execute(
+            'ALTER TABLE $_zonesTable ADD COLUMN building_height REAL NOT NULL DEFAULT 15.0',
+          );
+        }
       },
     );
 
@@ -165,7 +172,8 @@ class ZoneDbService {
           fill_alpha REAL NOT NULL DEFAULT 0.3,
           border_alpha REAL NOT NULL DEFAULT 0.8,
           start_minute_of_day INTEGER,
-          end_minute_of_day INTEGER
+          end_minute_of_day INTEGER,
+          building_height REAL NOT NULL DEFAULT 15.0
         )
       ''');
 
@@ -214,6 +222,7 @@ class ZoneDbService {
               borderAlpha: zone.borderAlpha,
               startMinuteOfDay: zone.startMinuteOfDay,
               endMinuteOfDay: zone.endMinuteOfDay,
+              buildingHeight: zone.buildingHeight,
               points: zone.points,
             ),
           )
@@ -263,6 +272,7 @@ class ZoneDbService {
           borderAlpha: (zoneRow['border_alpha'] as num).toDouble(),
           startMinuteOfDay: zoneRow['start_minute_of_day'] as int?,
           endMinuteOfDay: zoneRow['end_minute_of_day'] as int?,
+          buildingHeight: (zoneRow['building_height'] as num).toDouble(),
           points: points,
         ),
       );
@@ -294,6 +304,7 @@ class ZoneDbService {
           'border_alpha': zone.borderAlpha,
           'start_minute_of_day': zone.startMinuteOfDay,
           'end_minute_of_day': zone.endMinuteOfDay,
+          'building_height': zone.buildingHeight,
         });
 
         for (int i = 0; i < zone.points.length; i++) {
@@ -323,6 +334,7 @@ class ZoneDbService {
         'border_alpha': zone.borderAlpha,
         'start_minute_of_day': zone.startMinuteOfDay,
         'end_minute_of_day': zone.endMinuteOfDay,
+        'building_height': zone.buildingHeight,
       });
 
       for (int i = 0; i < zone.points.length; i++) {
@@ -349,6 +361,7 @@ class ZoneDbService {
         borderAlpha: zone.borderAlpha,
         startMinuteOfDay: zone.startMinuteOfDay,
         endMinuteOfDay: zone.endMinuteOfDay,
+        buildingHeight: zone.buildingHeight,
       );
     } catch (e) {
       debugPrint('Backend zone create skipped: $e');

@@ -201,4 +201,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get nighttime => 'وقت الليل';
+
+  @override
+  String get nearestWaterPoint => 'أقرب ماء';
+
+  @override
+  String get routingToWater => 'جارٍ التوجيه إلى أقرب نقطة مياه...';
+
+  @override
+  String get noWaterPointFound => 'لم يتم العثور على نقطة مياه قريبة.';
 }
