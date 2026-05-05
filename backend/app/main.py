@@ -30,7 +30,7 @@ from .schemas import (
     IncidentOut,
     ZoneCreate,
     ZoneOut,
-    ZoneUpdate
+    ZoneUpdate,
     EMReportCreate,
     EMReportListOut,
     EMReportOut,
@@ -529,4 +529,83 @@ def exposure_threshold(
         rule_prediction_seconds=round(rule_pred, 2),
         blend_alpha=round(alpha, 4),
         sample_count=samples,
+    )
+
+@app.post("/v1/create-report", response_model=EMReportOut)
+def create_report(payload: EMReportCreate, db: Session = Depends(get_db)):
+    report = EMReport(
+        user_id=payload.user_id,
+        created_at=payload.created_at or datetime.utcnow(),
+        location_lat=payload.location_lat,
+        location_lng=payload.location_lng,
+        incident_id=payload.incident_id,
+        taken_care=payload.taken_care,
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    return EMReportOut(
+        id=report.id,
+        user_id=report.user_id,
+        created_at=report.created_at,
+        location_lat=report.location_lat,
+        location_lng=report.location_lng,
+        taken_care=report.taken_care,
+        incident_id=report.incident_id,
+    )
+
+
+@app.get("/v1/get-report/{report_id}", response_model=EMReportOut)
+def get_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.get(EMReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return EMReportOut(
+        id=report.id,
+        user_id=report.user_id,
+        created_at=report.created_at,
+        location_lat=report.location_lat,
+        location_lng=report.location_lng,
+        taken_care=report.taken_care,
+        incident_id=report.incident_id,
+    )
+
+
+@app.get("/v1/getall-reports", response_model=list[EMReportOut])
+def get_all_reports(db: Session = Depends(get_db)):
+    reports = db.query(EMReport).order_by(EMReport.created_at.desc()).all()
+    return [
+        EMReportOut(
+            id=report.id,
+            user_id=report.user_id,
+            created_at=report.created_at,
+            location_lat=report.location_lat,
+            location_lng=report.location_lng,
+            taken_care=report.taken_care,
+            incident_id=report.incident_id,
+        )
+        for report in reports
+    ]
+
+
+@app.put("/v1/complete-report", response_model=EMReportOut, dependencies=[Depends(_require_api_key)])
+def complete_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.get(EMReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.taken_care = True
+    db.commit()
+    db.refresh(report)
+
+    return EMReportOut(
+        id=report.id,
+        user_id=report.user_id,
+        created_at=report.created_at,
+        location_lat=report.location_lat,
+        location_lng=report.location_lng,
+        taken_care=report.taken_care,
+        incident_id=report.incident_id,
     )

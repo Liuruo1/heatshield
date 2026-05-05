@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Point(BaseModel):
@@ -97,8 +97,7 @@ class EMReportListOut(BaseModel):
     taken_care: bool
     incident_id: int | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class EMReportOut(EMReportListOut):
     pass
