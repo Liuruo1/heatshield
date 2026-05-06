@@ -48,11 +48,15 @@ class HeatShieldApp extends StatelessWidget {
             return MaxWidthBox(
               maxWidth: 1200,
               child: ResponsiveScaledBox(
-                width: ResponsiveValue<double>(context, conditionalValues: [
-                  Condition.equals(name: MOBILE, value: 390),
-                  Condition.between(start: 800, end: 1100, value: 800),
-                  Condition.between(start: 1000, end: 1200, value: 1000),
-                ]).value,
+                width: ResponsiveValue<double?>(
+                  context,
+                  defaultValue: null,
+                  conditionalValues: [
+                    Condition.equals(name: MOBILE, value: 390.0),
+                    Condition.between(start: 800, end: 1100, value: 800.0),
+                    Condition.between(start: 1000, end: 1200, value: 1000.0),
+                  ],
+                ).value,
                 child: child!,
               ),
             );
