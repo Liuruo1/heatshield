@@ -4,6 +4,7 @@ import 'package:heatshield/l10n/app_localizations.dart';
 import 'package:heatshield/screens/emergency_reports_screen.dart';
 import 'package:heatshield/screens/privacy_policy_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:heatshield/services/backend_api_service.dart';
 import 'package:heatshield/services/locale_provider.dart';
 import 'package:heatshield/services/time_provider.dart';
 import 'package:heatshield/services/server_connection_notifier.dart';
@@ -249,6 +250,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                     if (picked != null) {
                       timeProvider.setMockTime(picked);
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                // Server IP Override
+                ListTile(
+                  leading: const Icon(Icons.network_wifi, color: Colors.indigo),
+                  title: const Text(
+                    'Override Server IP',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text('Current: ${BackendApiService.currentBaseUrl}'),
+                  trailing: const Icon(Icons.edit),
+                  onTap: () async {
+                    String currentIp = BackendApiService.currentBaseUrl
+                        .replaceAll('http://', '')
+                        .replaceAll(':8000', '');
+                    final controller = TextEditingController(text: currentIp);
+                    final newIp = await showDialog<String>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Enter Server IP'),
+                        content: TextField(
+                          controller: controller,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. 192.168.1.5',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, controller.text.trim()),
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (newIp != null && newIp.isNotEmpty && newIp != currentIp) {
+                      setState(() {
+                        BackendApiService.overrideBaseUrl(newIp);
+                      });
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Server IP updated to $newIp')),
+                        );
+                      }
                     }
                   },
                 ),
