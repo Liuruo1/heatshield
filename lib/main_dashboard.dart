@@ -21,9 +21,12 @@ class _MainDashboardState extends State<MainDashboard> {
     SettingsScreen(),
   ];
 
+  late final List<bool> _loadedScreens = List.generate(_screens.length, (i) => i == 0);
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      _loadedScreens[index] = true;
     });
   }
 
@@ -32,7 +35,12 @@ class _MainDashboardState extends State<MainDashboard> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: List.generate(_screens.length, (index) {
+          if (_loadedScreens[index]) {
+            return _screens[index];
+          }
+          return const SizedBox.shrink();
+        }),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
