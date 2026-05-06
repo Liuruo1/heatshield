@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:heatshield/services/server_connection_notifier.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:heatshield/models/em_report.dart';
 
 class EffectiveWeather {
   final double baseTempC;
@@ -119,13 +120,22 @@ class BackendZone {
 class BackendApiService {
   BackendApiService._();
 
-  static final String _baseUrl = () {
+  static String _baseUrl = () {
     const url = String.fromEnvironment(
       'API_BASE_URL',
       defaultValue: 'http://10.0.2.2:8000',
     );
     return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
   }();
+  
+  static String get currentBaseUrl => _baseUrl;
+
+  static void overrideBaseUrl(String newIp) {
+    if (newIp.isNotEmpty) {
+      _baseUrl = 'http://$newIp:8000';
+    }
+  }
+
   static const String _apiKey = String.fromEnvironment(
     'API_KEY',
     defaultValue: '',
@@ -306,6 +316,57 @@ class BackendApiService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to post incident: ${response.statusCode}');
+    }
+  }
+
+  // --- EM Report Functions ---
+
+  /// Create a new emergency escalation report when auto-dispatch occurs
+  static Future<void> createEMReport({
+    required String userId,
+    required double locationLat,
+    required double locationLng,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/v1/create-report');
+    final body = json.encode({
+      'user_id': userId,
+      'location_lat': locationLat,
+      'location_lng': locationLng,
+    });
+    
+    final response = await _sendRequest(
+      () => http.post(uri, headers: _headers, body: body).timeout(const Duration(seconds: 10)),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to create EM report: ${response.statusCode}');
+    }
+  }
+
+  /// Fetch all emergency escalation reports
+  static Future<List<EMReport>> getAllEMReports() async {
+    final uri = Uri.parse('$_baseUrl/v1/getall-reports');
+    final response = await _sendRequest(
+      () => http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => EMReport.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load EM reports');
+    }
+  }
+
+  /// Mark an EM report as completed/taken care of
+  static Future<void> completeEMReport(int reportId) async {
+    final uri = Uri.parse('$_baseUrl/v1/complete-report?report_id=$reportId');
+    final response = await _sendRequest(
+      () => http.put(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to complete report: ${response.statusCode}');
     }
   }
 }

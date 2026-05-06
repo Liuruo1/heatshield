@@ -213,4 +213,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noWaterPointFound => 'No water point found nearby.';
+
+  @override
+  String get privacyPolicyTitle => 'HeatShield Privacy Policy';
+
+  @override
+  String get lastUpdated => 'Last Updated: May 2026';
+
+  @override
+  String get ppIntroTitle => '1. Introduction';
+
+  @override
+  String get ppIntroText =>
+      'Welcome to HeatShield. This privacy policy explains how our app handles your personal information, specifically focusing on your location and health-related data used for calculating heat exposure.';
+
+  @override
+  String get ppDataTitle => '2. Data We Collect';
+
+  @override
+  String get ppDataText =>
+      '• Location Data: We track your real-time location to determine whether you are in shaded or unshaded zones and to provide accurate local weather data.\n• Health & Environmental Metrics: We log your estimated sun exposure duration, safe exposure thresholds, and local temperatures.';
+
+  @override
+  String get ppUsageTitle => '3. How We Use Your Data';
+
+  @override
+  String get ppUsageText =>
+      'Your data is primarily used locally on your device to calculate your risk of heat stress. If an emergency exposure incident occurs, we securely transmit an Emergency Report (including your location, time, and exposure duration) to our backend server so that safety personnel can assist you.';
+
+  @override
+  String get ppSharingTitle => '4. Data Sharing and Security';
+
+  @override
+  String get ppSharingText =>
+      'We do not sell your personal data. The information sent to our servers is strictly used for emergency escalation and improving our predictive safety models. We use standard encryption to protect your data during transmission.';
+
+  @override
+  String get ppRightsTitle => '5. Your Rights';
+
+  @override
+  String get ppRightsText =>
+      'You may disable location tracking at any time via your device settings, though this will limit HeatShield\'s ability to monitor your heat exposure accurately.';
 }

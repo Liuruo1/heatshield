@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heatshield/l10n/app_localizations.dart';
+import 'package:heatshield/screens/emergency_reports_screen.dart';
+import 'package:heatshield/screens/privacy_policy_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:heatshield/services/locale_provider.dart';
 import 'package:heatshield/services/time_provider.dart';
@@ -153,13 +155,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.local_hospital, color: Colors.red),
+                  title: const Text(
+                    'Emergency Escalation Reports',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmergencyReportsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.privacy_tip_outlined),
                   title: Text(
                     AppLocalizations.of(context)!.privacyPolicy,
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
+                      ),
+                    );
+                  },
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -244,17 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () async {
                     final action = ServerConnectionNotifier.turboAction;
                     if (action == null) return;
-                    final messenger = ScaffoldMessenger.of(context);
                     await action();
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('⚡ +5 min exposure added'),
-                          backgroundColor: Colors.deepOrange,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
                   },
                 ),
                 const Divider(height: 1),

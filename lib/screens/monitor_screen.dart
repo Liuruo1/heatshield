@@ -619,8 +619,21 @@ class _MonitorScreenState extends State<MonitorScreen> {
             onDismiss: () => Navigator.of(dialogContext).pop(),
             // Called automatically when the 3-minute countdown elapses with
             // no interaction — dialog is already popped by the widget itself
-            onAutoDispatch: () {
+            onAutoDispatch: () async {
               if (mounted) {
+                if (_currentLocation != null) {
+                  try {
+                    await BackendApiService.createEMReport(
+                      userId: _adaptiveUserId,
+                      locationLat: _currentLocation!.latitude,
+                      locationLng: _currentLocation!.longitude,
+                    );
+                  } catch (e) {
+                    debugPrint('Failed to create EM Report: $e');
+                  }
+                }
+
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: Colors.deepOrange.shade800,
@@ -1721,7 +1734,7 @@ class _EscalationDialog extends StatefulWidget {
 
 class _EscalationDialogState extends State<_EscalationDialog> {
   /// How long (seconds) before auto-dispatching if the user ignores the dialog.
-  static const int _autoDispatchSeconds = 3 * 60;
+  static const int _autoDispatchSeconds = 1 * 60;
 
   late int _secondsLeft;
   Timer? _countdownTimer;
