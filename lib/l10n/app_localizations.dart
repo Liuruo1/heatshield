@@ -278,6 +278,12 @@ abstract class AppLocalizations {
   /// **'You are already in a safe shaded zone.'**
   String get alreadyInShade;
 
+  /// No description provided for @goDownstairs.
+  ///
+  /// In en, this message translates to:
+  /// **'You are on the roof of a shaded structure. Please go downstairs to reach the shaded area below.'**
+  String get goDownstairs;
+
   /// No description provided for @riskLevelLabel.
   ///
   /// In en, this message translates to:

@@ -591,6 +591,41 @@ class _MonitorScreenState extends State<MonitorScreen> {
             // Called when the user taps "Navigate to Nearest Shade"
             onNavigateToShade: () {
               Navigator.of(dialogContext).pop();
+              // If the user is on a rooftop, tell them to go downstairs
+              // instead of routing them to the zone they're already above.
+              if (_safetyStatus == SafetyStatus.exposedRoof) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.orange.shade800,
+                    duration: const Duration(seconds: 5),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    content: Row(
+                      children: [
+                        const Icon(
+                          Icons.stairs,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)!.goDownstairs,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+                return;
+              }
               if (_currentLocation != null && !_isInShadedArea) {
                 LatLng? nearestPoint;
                 double minDistance = double.infinity;
@@ -1282,6 +1317,33 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       onPressed: () {
                         final l10n = AppLocalizations.of(context)!;
                         if (_currentLocation == null) return;
+                        // On the rooftop of a shaded zone — tell user to go downstairs
+                        if (_safetyStatus == SafetyStatus.exposedRoof) {
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) {
+                              Future.delayed(const Duration(seconds: 3), () {
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              });
+                              return AlertDialog(
+                                title: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.stairs,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(l10n.nearestSafeZone),
+                                  ],
+                                ),
+                                content: Text(l10n.goDownstairs),
+                              );
+                            },
+                          );
+                          return;
+                        }
                         if (_isInShadedArea) {
                           showDialog(
                             context: context,

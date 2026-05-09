@@ -100,6 +100,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get alreadyInShade => 'أنت بالفعل في منطقة مظللة آمنة.';
 
   @override
+  String get goDownstairs =>
+      'أنت على سطح منطقة مظللة. يرجى النزول إلى الطابق السفلي للوصول إلى المنطقة المظللة أدناه.';
+
+  @override
   String get riskLevelLabel => 'مستوى الخطر';
 
   @override

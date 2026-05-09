@@ -100,6 +100,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alreadyInShade => 'You are already in a safe shaded zone.';
 
   @override
+  String get goDownstairs =>
+      'You are on the roof of a shaded structure. Please go downstairs to reach the shaded area below.';
+
+  @override
   String get riskLevelLabel => 'Risk Level';
 
   @override

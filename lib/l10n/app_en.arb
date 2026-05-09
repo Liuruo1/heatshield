@@ -30,6 +30,7 @@
   "seekShadeImmediately": "You have been in direct sunlight for too long. Seek shade immediately.",
   "routingToShade": "Routing to nearest shaded zone...",
   "alreadyInShade": "You are already in a safe shaded zone.",
+  "goDownstairs": "You are on the roof of a shaded structure. Please go downstairs to reach the shaded area below.",
   "riskLevelLabel": "Risk Level",
   "emergencySos": "Emergency SOS",
   "callEmergency": "CALL EMERGENCY SERVICES",
