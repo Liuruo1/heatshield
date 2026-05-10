@@ -52,8 +52,8 @@ class EMReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     location_lat: Mapped[float] = mapped_column(Float, nullable=False)
     location_lng: Mapped[float] = mapped_column(Float, nullable=False)
-    incident_id: Mapped[int | None] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"))
-    incident: Mapped["Incident"] = relationship("Incident")
+    # Standalone sequential reference number (starts at 101). No longer a FK.
+    incident_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     taken_care: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 class ModelBucket(Base):

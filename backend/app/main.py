@@ -54,6 +54,7 @@ def on_startup():
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         _migrate_legacy_zone_columns(db)
+        _migrate_incident_id_column(db)
         _seed_default_zones_if_needed(db)
 
 
@@ -118,6 +119,46 @@ def _migrate_legacy_zone_columns(db: Session) -> None:
 
     if statements:
         db.commit()
+
+
+def _migrate_incident_id_column(db: Session) -> None:
+    """Drop FK on incident_id (SQLite) and backfill NULL rows with 100 + id.
+
+    SQLite cannot DROP CONSTRAINT, so we recreate the table without the FK
+    when the pragma still reports it.  For other DB engines the column is
+    already a plain INTEGER after the model change; we only backfill nulls.
+    """
+    if engine.dialect.name == "sqlite":
+        fks = db.execute(text("PRAGMA foreign_key_list(em_reports)")).fetchall()
+        has_fk = any(row[2] == "incidents" for row in fks)  # row[2] = referenced table
+        if has_fk:
+            db.execute(text(
+                """
+                CREATE TABLE IF NOT EXISTS em_reports_new (
+                    id           INTEGER PRIMARY KEY,
+                    user_id      VARCHAR(120) NOT NULL,
+                    created_at   DATETIME,
+                    location_lat REAL NOT NULL,
+                    location_lng REAL NOT NULL,
+                    incident_id  INTEGER,
+                    taken_care   INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            ))
+            db.execute(text(
+                "INSERT INTO em_reports_new "
+                "SELECT id, user_id, created_at, location_lat, location_lng, "
+                "incident_id, taken_care FROM em_reports"
+            ))
+            db.execute(text("DROP TABLE em_reports"))
+            db.execute(text("ALTER TABLE em_reports_new RENAME TO em_reports"))
+            db.commit()
+
+    # Backfill existing rows where incident_id is still NULL → 100 + id.
+    db.execute(text(
+        "UPDATE em_reports SET incident_id = 100 + id WHERE incident_id IS NULL"
+    ))
+    db.commit()
 
 
 def _upsert_zone_from_payload(db: Session, payload: dict) -> Zone:
@@ -544,6 +585,12 @@ def create_report(payload: EMReportCreate, db: Session = Depends(get_db)):
     db.add(report)
     db.commit()
     db.refresh(report)
+
+    # Auto-assign a sequential incident reference if none was provided (101, 102, …).
+    if report.incident_id is None:
+        report.incident_id = 100 + report.id
+        db.commit()
+        db.refresh(report)
 
     return EMReportOut(
         id=report.id,

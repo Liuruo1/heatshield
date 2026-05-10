@@ -538,15 +538,13 @@ class _ReportDetailScreen extends StatelessWidget {
                       label: 'Time',
                       value: timeFormat.format(localTime),
                     ),
-                    if (report.incidentId != null) ...[
-                      _divider(),
-                      _DetailRow(
-                        icon: Icons.link_rounded,
-                        label: 'Incident ID',
-                        value: '#${report.incidentId}',
-                        valueColor: Colors.orange.shade700,
-                      ),
-                    ],
+                    _divider(),
+                    _DetailRow(
+                      icon: Icons.link_rounded,
+                      label: 'Incident ID',
+                      value: '#${report.incidentId}',
+                      valueColor: Colors.orange.shade700,
+                    ),
                   ],
                 ),
               ),

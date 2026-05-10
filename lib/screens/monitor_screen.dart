@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -280,6 +282,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
             if (relativeHeight >= zone.buildingHeight) {
               return Polygon(
                 points: zone.points,
+                // ignore: deprecated_member_use
                 color: Colors.orange.withOpacity(0.3),
                 borderColor: Colors.orange,
                 borderStrokeWidth: 2,
@@ -604,11 +607,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     ),
                     content: Row(
                       children: [
-                        const Icon(
-                          Icons.stairs,
-                          color: Colors.white,
-                          size: 26,
-                        ),
+                        const Icon(Icons.stairs, color: Colors.white, size: 26),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
