@@ -77,7 +77,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   List<ZonePolygon> _zones = [];
   List<ZonePolygon> _activeZones = [];
   List<Polygon> _polygons = [];
-  static const String _adaptiveUserId = 'default';
+  static const int _adaptiveUserId = 0;
 
   // Alharam Zone functionality
   bool _isInAlharam = false;

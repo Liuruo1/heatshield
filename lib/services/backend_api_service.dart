@@ -184,7 +184,7 @@ class BackendApiService {
   }
 
   static Future<ExposureThreshold> fetchExposureThreshold({
-    required String userId,
+    required int userId,
     required double temp,
     required bool shaded,
   }) async {
@@ -293,7 +293,7 @@ class BackendApiService {
   }
 
   static Future<void> postIncident({
-    required String userId,
+    required int userId,
     required int durationSeconds,
     required int? maxTemp,
     required double maxRiskRatio,
@@ -323,7 +323,7 @@ class BackendApiService {
 
   /// Create a new emergency escalation report when auto-dispatch occurs
   static Future<void> createEMReport({
-    required String userId,
+    required int userId,
     required double locationLat,
     required double locationLng,
   }) async {

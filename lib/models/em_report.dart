@@ -1,6 +1,6 @@
 class EMReport {
   final int id;
-  final String? userId;
+  final int? userId;
   final DateTime createdAt;
   final double locationLat;
   final double locationLng;
@@ -20,7 +20,7 @@ class EMReport {
   factory EMReport.fromJson(Map<String, dynamic> json) {
     return EMReport(
       id: json['id'] as int,
-      userId: json['user_id'] as String?,
+      userId: json['user_id'] as int?,
       createdAt: DateTime.parse(json['created_at'] as String),
       locationLat: (json['location_lat'] as num).toDouble(),
       locationLng: (json['location_lng'] as num).toDouble(),

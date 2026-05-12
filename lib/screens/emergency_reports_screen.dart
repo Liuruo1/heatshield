@@ -309,7 +309,7 @@ class _ReportCard extends StatelessWidget {
                         _InfoRow(
                           icon: Icons.person_outline_rounded,
                           label: 'User',
-                          value: report.userId ?? 'Unknown',
+                          value: report.userId?.toString() ?? 'Unknown',
                         ),
                         const SizedBox(height: 6),
                         _InfoRow(
@@ -524,7 +524,7 @@ class _ReportDetailScreen extends StatelessWidget {
                     _DetailRow(
                       icon: Icons.person_rounded,
                       label: 'User ID',
-                      value: report.userId ?? 'Unknown',
+                      value: report.userId?.toString() ?? 'Unknown',
                     ),
                     _divider(),
                     _DetailRow(
