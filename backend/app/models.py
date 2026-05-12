@@ -17,6 +17,7 @@ class Zone(Base):
     start_minute_of_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
     end_minute_of_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
     temp_delta_c: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    soft_delete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     points: Mapped[list["ZonePoint"]] = relationship(
         "ZonePoint", cascade="all, delete-orphan", back_populates="zone"
     )
@@ -37,7 +38,7 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     max_temp: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_risk_ratio: Mapped[float] = mapped_column(Float, nullable=False)
@@ -48,7 +49,7 @@ class EMReport(Base):
     __tablename__ = "em_reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     location_lat: Mapped[float] = mapped_column(Float, nullable=False)
     location_lng: Mapped[float] = mapped_column(Float, nullable=False)
@@ -60,7 +61,7 @@ class ModelBucket(Base):
     __tablename__ = "model_buckets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     bucket_key: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     ema_safe_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=900.0)

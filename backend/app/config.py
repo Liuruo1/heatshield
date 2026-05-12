@@ -5,6 +5,12 @@ load_dotenv()
 
 DATABASE_URL = getenv("DATABASE_URL", "").strip()
 API_KEY = getenv("API_KEY", "change-me")
+APP_ENV = getenv("APP_ENV", "development").strip().lower()
+CORS_ALLOW_ORIGINS = [
+    origin.strip()
+    for origin in getenv("CORS_ALLOW_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 OPEN_METEO_TIMEOUT_SECONDS = float(getenv("OPEN_METEO_TIMEOUT_SECONDS", "8"))
 DEFAULT_SAFE_EXPOSURE_SECONDS = int(getenv("DEFAULT_SAFE_EXPOSURE_SECONDS", "900"))
 MIN_SAFE_EXPOSURE_SECONDS = int(getenv("MIN_SAFE_EXPOSURE_SECONDS", "180"))

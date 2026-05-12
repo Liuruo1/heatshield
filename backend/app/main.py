@@ -5,13 +5,16 @@ from pathlib import Path
 import requests, os, socket
 from socket import gethostname,gethostbyname
 from os import environ
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from sqlalchemy import inspect, select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import (
+    APP_ENV,
     API_KEY,
+    CORS_ALLOW_ORIGINS,
     DEFAULT_SAFE_EXPOSURE_SECONDS,
     ENFORCE_GLOBAL_DAYLIGHT_WINDOW,
     GLOBAL_ZONE_DAY_END_MINUTE,
@@ -47,6 +50,13 @@ print(f"Your Server IP Address is: {local_ip}, insert this in the mobile app for
 print(f"To access API controls: http://{local_ip}:{port}/docs")
 
 app = FastAPI(title="HeatShield API", version="1.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 _BASE_DIR = Path(__file__).resolve().parent
 _DEFAULT_ZONES_PATH = _BASE_DIR / "default_zones.json"
@@ -62,10 +72,10 @@ def _require_api_key(x_api_key: str = Header(default="")):
 
 @app.on_event("startup")
 def on_startup():
+    if APP_ENV == "production" and (not API_KEY or API_KEY == "change-me"):
+        raise RuntimeError("Set API_KEY in production; default key is not allowed")
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
-        _migrate_legacy_zone_columns(db)
-        _migrate_incident_id_column(db)
         _seed_default_zones_if_needed(db)
 
 
@@ -109,69 +119,6 @@ def _load_default_zones() -> list[dict]:
         return json.load(handle)
 
 
-def _migrate_legacy_zone_columns(db: Session) -> None:
-    if engine.dialect.name != "sqlite":
-        return
-
-    inspector = inspect(engine)
-    try:
-        columns = {column["name"] for column in inspector.get_columns("zones")}
-    except Exception:
-        return
-
-    statements = []
-    if "fill_alpha" not in columns:
-        statements.append("ALTER TABLE zones ADD COLUMN fill_alpha REAL NOT NULL DEFAULT 0.3")
-    if "border_alpha" not in columns:
-        statements.append("ALTER TABLE zones ADD COLUMN border_alpha REAL NOT NULL DEFAULT 0.8")
-
-    for statement in statements:
-        db.execute(text(statement))
-
-    if statements:
-        db.commit()
-
-
-def _migrate_incident_id_column(db: Session) -> None:
-    """Drop FK on incident_id (SQLite) and backfill NULL rows with 100 + id.
-
-    SQLite cannot DROP CONSTRAINT, so we recreate the table without the FK
-    when the pragma still reports it.  For other DB engines the column is
-    already a plain INTEGER after the model change; we only backfill nulls.
-    """
-    if engine.dialect.name == "sqlite":
-        fks = db.execute(text("PRAGMA foreign_key_list(em_reports)")).fetchall()
-        has_fk = any(row[2] == "incidents" for row in fks)  # row[2] = referenced table
-        if has_fk:
-            db.execute(text(
-                """
-                CREATE TABLE IF NOT EXISTS em_reports_new (
-                    id           INTEGER PRIMARY KEY,
-                    user_id      VARCHAR(120) NOT NULL,
-                    created_at   DATETIME,
-                    location_lat REAL NOT NULL,
-                    location_lng REAL NOT NULL,
-                    incident_id  INTEGER,
-                    taken_care   INTEGER NOT NULL DEFAULT 0
-                )
-                """
-            ))
-            db.execute(text(
-                "INSERT INTO em_reports_new "
-                "SELECT id, user_id, created_at, location_lat, location_lng, "
-                "incident_id, taken_care FROM em_reports"
-            ))
-            db.execute(text("DROP TABLE em_reports"))
-            db.execute(text("ALTER TABLE em_reports_new RENAME TO em_reports"))
-            db.commit()
-
-    # Backfill existing rows where incident_id is still NULL → 100 + id.
-    db.execute(text(
-        "UPDATE em_reports SET incident_id = 100 + id WHERE incident_id IS NULL"
-    ))
-    db.commit()
-
-
 def _upsert_zone_from_payload(db: Session, payload: dict) -> Zone:
     zone = Zone(
         name=payload["name"],
@@ -198,7 +145,7 @@ def _upsert_zone_from_payload(db: Session, payload: dict) -> Zone:
 
 
 def _seed_default_zones_if_needed(db: Session) -> None:
-    if db.query(Zone).count() > 0:
+    if db.query(Zone).where(Zone.soft_delete == False).count() > 0:
         return
 
     for payload in _load_default_zones():
@@ -357,7 +304,7 @@ def _rule_based_safe_seconds(temp_c: float, shaded: bool) -> float:
 
 def _upsert_bucket(
     db: Session,
-    user_id: str,
+    user_id: int,
     bucket_key: str,
     observed_safe_seconds: int,
 ):
@@ -386,7 +333,7 @@ def _upsert_bucket(
 
 def _predict_threshold(
     db: Session,
-    user_id: str,
+    user_id: int,
     temp_c: float,
     shaded: bool,
 ) -> tuple[int, float, float, float, int]:
@@ -417,8 +364,18 @@ def _predict_threshold(
 
 
 @app.get("/v1/zones", response_model=list[ZoneOut])
-def list_zones(db: Session = Depends(get_db)):
-    zones = db.scalars(select(Zone).order_by(Zone.id.asc())).all()
+def list_zones(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    zones = db.scalars(
+        select(Zone)
+        .where(Zone.soft_delete == False)
+        .order_by(Zone.id.asc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
     return [_serialize_zone(zone) for zone in zones]
 
 
@@ -432,8 +389,8 @@ def list_default_zones():
 
 @app.post("/v1/zones/reset-defaults", response_model=list[ZoneOut], dependencies=[Depends(_require_api_key)])
 def reset_default_zones(db: Session = Depends(get_db)):
-    db.query(ZonePoint).delete()
-    db.query(Zone).delete()
+    # Soft delete all existing zones
+    db.query(Zone).update({Zone.soft_delete: True})
     db.flush()
 
     created = []
@@ -454,7 +411,7 @@ def create_zone(payload: ZoneCreate, db: Session = Depends(get_db)):
 @app.put("/v1/zones/{zone_id}", response_model=ZoneOut, dependencies=[Depends(_require_api_key)])
 def update_zone(zone_id: int, payload: ZoneUpdate, db: Session = Depends(get_db)):
     zone = db.get(Zone, zone_id)
-    if zone is None:
+    if zone is None or zone.soft_delete:
         raise HTTPException(status_code=404, detail="Zone not found")
 
     zone.name = payload.name
@@ -481,7 +438,7 @@ def delete_zone(zone_id: int, db: Session = Depends(get_db)):
     zone = db.get(Zone, zone_id)
     if zone is None:
         raise HTTPException(status_code=404, detail="Zone not found")
-    db.delete(zone)
+    zone.soft_delete = True
     db.commit()
     return {"deleted": True}
 
@@ -522,13 +479,21 @@ def ingest_incident(payload: IncidentIn, db: Session = Depends(get_db)):
 
 
 @app.get("/v1/weather/effective", response_model=EffectiveWeatherOut)
-def effective_weather(lat: float, lng: float, db: Session = Depends(get_db)):
+def effective_weather(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lng: float = Query(..., ge=-180.0, le=180.0),
+    db: Session = Depends(get_db),
+):
     base_temp = _fetch_open_meteo_temp(lat, lng)
     now_utc = datetime.now(timezone.utc)
     minute_utc = _minute_of_day(now_utc)
     zones_enabled = _global_zones_enabled(minute_utc, lat, lng, now_utc)
     matched_zone = None
-    for zone in db.scalars(select(Zone).order_by(Zone.id.asc())).all():
+    for zone in db.scalars(
+        select(Zone)
+        .where(Zone.soft_delete == False)
+        .order_by(Zone.id.asc())
+    ).all():
         if not _zone_is_active(zone, minute_utc, zones_enabled):
             continue
         ordered_points = sorted(zone.points, key=lambda p: p.point_order)
@@ -550,7 +515,10 @@ def effective_weather(lat: float, lng: float, db: Session = Depends(get_db)):
 
 
 @app.get("/v1/daylight-window", response_model=DaylightWindowOut)
-def daylight_window(lat: float, lng: float):
+def daylight_window(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lng: float = Query(..., ge=-180.0, le=180.0),
+):
     now_utc = datetime.now(timezone.utc)
     start, end, sunrise, sunset, source = _resolve_daylight_window(lat, lng, now_utc)
     return DaylightWindowOut(
@@ -564,7 +532,7 @@ def daylight_window(lat: float, lng: float):
 
 @app.get("/v1/exposure-threshold", response_model=ExposureThresholdOut)
 def exposure_threshold(
-    user_id: str = "default",
+    user_id: int = Query(0, ge=0),
     temp: float = 35.0,
     shaded: bool = False,
     db: Session = Depends(get_db),
@@ -632,8 +600,18 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/v1/getall-reports", response_model=list[EMReportOut])
-def get_all_reports(db: Session = Depends(get_db)):
-    reports = db.query(EMReport).order_by(EMReport.created_at.desc()).all()
+def get_all_reports(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    reports = (
+        db.query(EMReport)
+        .order_by(EMReport.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return [
         EMReportOut(
             id=report.id,

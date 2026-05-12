@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Point(BaseModel):
-    lat: float
-    lng: float
+    lat: float = Field(ge=-90.0, le=90.0)
+    lng: float = Field(ge=-180.0, le=180.0)
 
 
 class ZoneBase(BaseModel):
@@ -38,7 +38,7 @@ class ZoneOut(ZoneBase):
 
 
 class IncidentIn(BaseModel):
-    user_id: str = "default"
+    user_id: int = Field(ge=0, default=0)
     duration_seconds: int = Field(ge=1)
     max_temp: float | None = None
     max_risk_ratio: float = Field(ge=0.0, le=1.0)
@@ -47,7 +47,7 @@ class IncidentIn(BaseModel):
 
 class IncidentOut(BaseModel):
     id: int
-    user_id: str
+    user_id: int
     duration_seconds: int
     max_temp: float | None
     max_risk_ratio: float
@@ -82,17 +82,18 @@ class DaylightWindowOut(BaseModel):
     source: str
 
 class EMReportCreate(BaseModel):
-    user_id: str = "default"
+    user_id: int = Field(ge=0, default=0)
     created_at: datetime | None = None
-    location_lat: float 
-    location_lng: float
+    location_lat: float = Field(ge=-90.0, le=90.0)
+    location_lng: float = Field(ge=-180.0, le=180.0)
     incident_id: int | None = None
     taken_care: bool = False
 
 class EMReportListOut(BaseModel):
     id: int
+    user_id: int
     created_at: datetime
-    location_lat: float 
+    location_lat: float
     location_lng: float
     taken_care: bool
     incident_id: int | None = None
