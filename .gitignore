@@ -11,7 +11,10 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+analysis_output.txt
+analyze.txt
 
+.metadata
 # IntelliJ related
 *.iml
 *.ipr
