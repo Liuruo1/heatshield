@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 
-import requests
+import requests, os, socket
+from socket import gethostname,gethostbyname
+from os import environ
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy import inspect, select, text
@@ -36,7 +38,16 @@ from .schemas import (
     EMReportOut,
 )
 
+
+# Get the hostname of your machine
+hostname = gethostname()
+port = environ.get("PORT", "8000")# Get the IP address associated with that hostname
+local_ip = gethostbyname(hostname)
+print(f"Your Server IP Address is: {local_ip}, insert this in the mobile app for it to function")
+print(f"To access API controls: http://{local_ip}:{port}/docs")
+
 app = FastAPI(title="HeatShield API", version="1.0.0")
+
 _BASE_DIR = Path(__file__).resolve().parent
 _DEFAULT_ZONES_PATH = _BASE_DIR / "default_zones.json"
 _DAYLIGHT_WINDOW_CACHE: dict[tuple[float, float, str], tuple[int, int, datetime, datetime]] = {}
