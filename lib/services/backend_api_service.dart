@@ -127,7 +127,7 @@ class BackendApiService {
     );
     return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
   }();
-  
+
   static String get currentBaseUrl => _baseUrl;
 
   static void overrideBaseUrl(String newIp) {
@@ -333,9 +333,11 @@ class BackendApiService {
       'location_lat': locationLat,
       'location_lng': locationLng,
     });
-    
+
     final response = await _sendRequest(
-      () => http.post(uri, headers: _headers, body: body).timeout(const Duration(seconds: 10)),
+      () => http
+          .post(uri, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 10)),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -347,7 +349,8 @@ class BackendApiService {
   static Future<List<EMReport>> getAllEMReports() async {
     final uri = Uri.parse('$_baseUrl/v1/getall-reports');
     final response = await _sendRequest(
-      () => http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+      () =>
+          http.get(uri, headers: _headers).timeout(const Duration(seconds: 10)),
     );
 
     if (response.statusCode == 200) {
@@ -362,7 +365,8 @@ class BackendApiService {
   static Future<void> completeEMReport(int reportId) async {
     final uri = Uri.parse('$_baseUrl/v1/complete-report?report_id=$reportId');
     final response = await _sendRequest(
-      () => http.put(uri, headers: _headers).timeout(const Duration(seconds: 10)),
+      () =>
+          http.put(uri, headers: _headers).timeout(const Duration(seconds: 10)),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {

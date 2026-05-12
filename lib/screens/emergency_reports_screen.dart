@@ -95,7 +95,11 @@ class _EmergencyReportsScreenState extends State<EmergencyReportsScreen> {
             SizedBox(width: 10),
             Text(
               'Emergency Escalation Reports',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ],
         ),
@@ -112,10 +116,10 @@ class _EmergencyReportsScreenState extends State<EmergencyReportsScreen> {
               child: CircularProgressIndicator(color: Colors.redAccent),
             )
           : _error != null
-              ? _buildError()
-              : _reports.isEmpty
-                  ? _buildEmpty()
-                  : _buildList(),
+          ? _buildError()
+          : _reports.isEmpty
+          ? _buildEmpty()
+          : _buildList(),
     );
   }
 
@@ -126,7 +130,11 @@ class _EmergencyReportsScreenState extends State<EmergencyReportsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded, color: Colors.redAccent, size: 56),
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: Colors.redAccent,
+              size: 56,
+            ),
             const SizedBox(height: 16),
             Text(
               'Could not load reports',
@@ -240,7 +248,9 @@ class _ReportCard extends StatelessWidget {
                 color: isResolved
                     ? Colors.green.withValues(alpha: 0.12)
                     : Colors.redAccent.withValues(alpha: 0.12),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(17),
+                ),
               ),
               child: Row(
                 children: [
@@ -253,7 +263,9 @@ class _ReportCard extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isResolved ? Icons.check_circle_rounded : Icons.crisis_alert,
+                      isResolved
+                          ? Icons.check_circle_rounded
+                          : Icons.crisis_alert,
                       color: isResolved ? Colors.greenAccent : Colors.redAccent,
                       size: 20,
                     ),
@@ -274,7 +286,9 @@ class _ReportCard extends StatelessWidget {
                         Text(
                           isResolved ? 'RESOLVED' : 'ACTIVE',
                           style: TextStyle(
-                            color: isResolved ? Colors.green.shade700 : Colors.redAccent,
+                            color: isResolved
+                                ? Colors.green.shade700
+                                : Colors.redAccent,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.2,
@@ -395,7 +409,10 @@ class _MiniMapThumbnail extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.1), width: 1),
+                border: Border.all(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  width: 1,
+                ),
               ),
             ),
           ],
@@ -437,7 +454,11 @@ class _ReportDetailScreen extends StatelessWidget {
             foregroundColor: Colors.black87,
             title: Text(
               'Emergency #${report.id}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.black87,
+              ),
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: _FullMap(point: point, isResolved: isResolved),
@@ -461,7 +482,9 @@ class _ReportDetailScreen extends StatelessWidget {
                           : Colors.red.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: isResolved ? Colors.green.shade600 : Colors.redAccent,
+                        color: isResolved
+                            ? Colors.green.shade600
+                            : Colors.redAccent,
                         width: 1.2,
                       ),
                     ),
@@ -472,14 +495,18 @@ class _ReportDetailScreen extends StatelessWidget {
                           isResolved
                               ? Icons.check_circle_rounded
                               : Icons.crisis_alert,
-                          color: isResolved ? Colors.green.shade700 : Colors.redAccent,
+                          color: isResolved
+                              ? Colors.green.shade700
+                              : Colors.redAccent,
                           size: 16,
                         ),
                         const SizedBox(width: 7),
                         Text(
                           isResolved ? 'RESOLVED' : 'ACTIVE — NEEDS ATTENTION',
                           style: TextStyle(
-                            color: isResolved ? Colors.green.shade700 : Colors.redAccent,
+                            color: isResolved
+                                ? Colors.green.shade700
+                                : Colors.redAccent,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                             letterSpacing: 1.1,
@@ -501,9 +528,15 @@ class _ReportDetailScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                  border: Border.all(
+                    color: Colors.black.withValues(alpha: 0.06),
+                  ),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: Offset(0, 2)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: Column(
@@ -559,9 +592,15 @@ class _ReportDetailScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                  border: Border.all(
+                    color: Colors.black.withValues(alpha: 0.06),
+                  ),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: Offset(0, 2)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: Column(
@@ -663,11 +702,11 @@ class _ReportDetailScreen extends StatelessWidget {
   }
 
   Widget _divider() => const Divider(
-        color: Color(0xFFEEEEEE),
-        height: 1,
-        indent: 16,
-        endIndent: 16,
-      );
+    color: Color(0xFFEEEEEE),
+    height: 1,
+    indent: 16,
+    endIndent: 16,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -684,10 +723,7 @@ class _FullMap extends StatelessWidget {
     return Stack(
       children: [
         FlutterMap(
-          options: MapOptions(
-            initialCenter: point,
-            initialZoom: 17,
-          ),
+          options: MapOptions(initialCenter: point, initialZoom: 17),
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -699,9 +735,12 @@ class _FullMap extends StatelessWidget {
                 CircleMarker(
                   point: point,
                   radius: 22,
-                  color: (isResolved ? Colors.green : Colors.red)
-                      .withValues(alpha: 0.25),
-                  borderColor: isResolved ? Colors.greenAccent : Colors.redAccent,
+                  color: (isResolved ? Colors.green : Colors.red).withValues(
+                    alpha: 0.25,
+                  ),
+                  borderColor: isResolved
+                      ? Colors.greenAccent
+                      : Colors.redAccent,
                   borderStrokeWidth: 2.5,
                   useRadiusInMeter: false,
                 ),
@@ -879,7 +918,10 @@ class _InfoRow extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.black38, size: 14),
         const SizedBox(width: 5),
-        Text('$label: ', style: const TextStyle(color: Colors.black45, fontSize: 12)),
+        Text(
+          '$label: ',
+          style: const TextStyle(color: Colors.black45, fontSize: 12),
+        ),
         Expanded(
           child: Text(
             value,
