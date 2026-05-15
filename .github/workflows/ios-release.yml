@@ -1,0 +1,40 @@
+name: iOS Unsigned Build
+
+on:
+  push:
+    branches: [ main ] # Runs every time you push to the main branch
+  workflow_dispatch:   # Allows you to run it manually from the GitHub website
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          # You can specify a flutter version here if needed, e.g., version: '3.19.0'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS (No Signing)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package IPA
+        run: |
+          # Flutter produces a .app folder. To make it an .ipa for sideloading, 
+          # we must put it in a folder named 'Payload' and zip it.
+          mkdir -p Payload
+          mv build/ios/iphoneos/Runner.app Payload/
+          zip -r ios-app-unsigned.ipa Payload
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ipa
+          path: ios-app-unsigned.ipa
