@@ -1,4 +1,4 @@
-package com.example.wear.presentation.theme
+package com.heatShieldWatch.wear.presentation.theme
 
 import androidx.compose.runtime.Composable
 import androidx.wear.compose.material3.MaterialTheme

@@ -1,10 +1,10 @@
-package com.example.wear.presentation
+package com.heatShieldWatch.wear.presentation
 
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.wear.data.HeatStatus
+import com.heatShieldWatch.wear.data.HeatStatus
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer

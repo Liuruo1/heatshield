@@ -1,4 +1,4 @@
-package com.example.wear.presentation
+package com.heatShieldWatch.wear.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -40,8 +40,8 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
 import androidx.wear.compose.ui.tooling.preview.WearPreviewFontScales
-import com.example.wear.data.HeatStatus
-import com.example.wear.presentation.theme.AndroidTheme
+import com.heatShieldWatch.wear.data.HeatStatus
+import com.heatShieldWatch.wear.presentation.theme.AndroidTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

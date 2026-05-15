@@ -1,4 +1,4 @@
-package com.example.wear.data
+package com.heatShieldWatch.wear.data
 
 data class HeatStatus(
     val currentTemp: Int = 0, // in Celsius

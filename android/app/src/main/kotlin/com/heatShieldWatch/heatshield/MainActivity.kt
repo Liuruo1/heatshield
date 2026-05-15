@@ -1,4 +1,4 @@
-package com.example.heatshield
+package com.heatShieldWatch.heatshield
 
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.Wearable

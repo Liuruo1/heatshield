@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.wear"
+    namespace = "com.heatShieldWatch.wear"
     compileSdk = 36
 
     defaultConfig {

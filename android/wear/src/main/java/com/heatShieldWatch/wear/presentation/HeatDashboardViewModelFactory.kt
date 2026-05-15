@@ -1,4 +1,4 @@
-package com.example.wear.presentation
+package com.heatShieldWatch.wear.presentation
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

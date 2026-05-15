@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.heatshield"
+    namespace = "com.heatShieldWatch.heatshield"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
