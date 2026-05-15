@@ -1,4 +1,4 @@
-
+// ignore_for_file: unused_field
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -98,7 +98,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   // User must move more than this distance (in metres) to reset the escalation clock
   static const double _movementThresholdMetres = 5.0;
 
-
+  bool _debugMode = false; // Enabled by Turbo Mode in developer settings
   StreamSubscription<void>?
   _zoneUpdatesSubscription; // Listens to ZoneDbService DB change events
 
@@ -574,9 +574,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Critical (0.66) is hit when seconds = 0.825 × safeLimit
   /// → safeLimit = targetCriticalSeconds / 0.825
   double _calculateRiskRatio() {
-    if (_isNightTime) return 0.0; // No risk at night — heat monitoring is disabled
+    if (_isNightTime)
+      return 0.0; // No risk at night — heat monitoring is disabled
 
-    final int temp = _currentTempValue ?? 30; // Default to 30°C if not yet fetched
+    final int temp =
+        _currentTempValue ?? 30; // Default to 30°C if not yet fetched
 
     // Temperature-tiered safe limit.
     // Calibrated so expRisk (capped at 0.8) crosses 0.66 (critical) at the target time.
@@ -734,7 +736,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
             },
             // Called when the user dismisses manually
             onDismiss: () => Navigator.of(dialogContext).pop(),
-            // Called automatically when the 3-minute countdown elapses with
+            // Called automatically when the 1-minute countdown elapses with
             // no interaction — dialog is already popped by the widget itself
             onAutoDispatch: () async {
               if (mounted) {
@@ -925,6 +927,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Future<void> _applyTurboStep() async {
     if (!mounted) return;
     setState(() {
+      _debugMode = true;
       _exposureSeconds += 300;
       final risk = _calculateRiskRatio();
       if (_currentTempValue != null) {
