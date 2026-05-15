@@ -74,7 +74,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     AppLocalizations.of(context)!.pushNotifications,
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
-                  subtitle: Text(AppLocalizations.of(context)!.receiveCriticalAlerts),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.receiveCriticalAlerts,
+                  ),
                   secondary: const Icon(Icons.notifications_active_outlined),
                   value: _pushNotifications,
                   onChanged: (value) {
@@ -91,9 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     AppLocalizations.of(context)!.hapticFeedback,
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
-                  subtitle: Text(
-                    AppLocalizations.of(context)!.vibrateOnWrist,
-                  ),
+                  subtitle: Text(AppLocalizations.of(context)!.vibrateOnWrist),
                   secondary: const Icon(Icons.vibration),
                   value: _hapticFeedback,
                   onChanged: (value) {
@@ -134,22 +134,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   trailing: DropdownButton<String>(
-                    value: Provider.of<LocaleProvider>(context).locale?.languageCode ?? 'en',
+                    value:
+                        Provider.of<LocaleProvider>(
+                          context,
+                        ).locale?.languageCode ??
+                        'en',
                     underline: const SizedBox(),
                     items: const [
-                      DropdownMenuItem(
-                        value: 'en',
-                        child: Text('English'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'ar',
-                        child: Text('العربية'),
-                      ),
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'ar', child: Text('العربية')),
                     ],
                     onChanged: (String? newValue) {
                       if (newValue != null) {
-                        Provider.of<LocaleProvider>(context, listen: false)
-                            .setLocale(Locale(newValue));
+                        Provider.of<LocaleProvider>(
+                          context,
+                          listen: false,
+                        ).setLocale(Locale(newValue));
                       }
                     },
                   ),
@@ -261,7 +261,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Override Server IP',
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
-                  subtitle: Text('Current: ${BackendApiService.currentBaseUrl}'),
+                  subtitle: Text(
+                    'Current: ${BackendApiService.currentBaseUrl}',
+                  ),
                   trailing: const Icon(Icons.edit),
                   onTap: () async {
                     String currentIp = BackendApiService.currentBaseUrl
@@ -277,7 +279,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           decoration: const InputDecoration(
                             hintText: 'e.g. 192.168.1.5',
                           ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                         ),
                         actions: [
                           TextButton(
@@ -285,19 +289,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: const Text('Cancel'),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pop(context, controller.text.trim()),
+                            onPressed: () =>
+                                Navigator.pop(context, controller.text.trim()),
                             child: const Text('Save'),
                           ),
                         ],
                       ),
                     );
-                    if (newIp != null && newIp.isNotEmpty && newIp != currentIp) {
+                    if (newIp != null &&
+                        newIp.isNotEmpty &&
+                        newIp != currentIp) {
                       setState(() {
                         BackendApiService.overrideBaseUrl(newIp);
                       });
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Server IP updated to $newIp')),
+                          SnackBar(
+                            content: Text('Server IP updated to $newIp'),
+                          ),
                         );
                       }
                     }
@@ -354,7 +363,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.vertical_align_bottom, color: Colors.green),
+                  leading: const Icon(
+                    Icons.vertical_align_bottom,
+                    color: Colors.green,
+                  ),
                   title: const Text(
                     'Reset Elevation (Ground)',
                     style: TextStyle(fontWeight: FontWeight.w500),

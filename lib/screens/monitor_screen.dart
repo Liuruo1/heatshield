@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field
+
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -19,6 +19,10 @@ import 'package:heatshield/services/watch_companion_service.dart';
 import 'package:heatshield/services/time_provider.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 
+/// The three possible safety states for the user's current position.
+/// - shaded: inside a shaded zone at ground level (safe)
+/// - exposedRoof: above a shaded building (on the roof — exposed)
+/// - unshaded: outside all shade zones (exposed at ground level)
 enum SafetyStatus { shaded, exposedRoof, unshaded }
 
 class MonitorScreen extends StatefulWidget {
@@ -29,55 +33,95 @@ class MonitorScreen extends StatefulWidget {
 }
 
 class _MonitorScreenState extends State<MonitorScreen> {
-  final MapController _mapController = MapController();
-  final GeofenceService _geofenceService = GeofenceService();
-  final ZoneDbService _zoneDbService = ZoneDbService();
+  final MapController _mapController =
+      MapController(); // Controls the FlutterMap camera (pan, zoom)
+  final GeofenceService _geofenceService =
+      GeofenceService(); // Triggers snackbar alerts when entering heat zones
+  final ZoneDbService _zoneDbService =
+      ZoneDbService(); // Reads shaded/unshaded zones from local SQLite DB
 
   // --- State Variables ---
+
+  // GPS & Map
   LatLng? _currentLocation =
-      _initialPosition; // Initialize so the button is always visible
-  StreamSubscription<Position>? _positionStreamSubscription;
-  SafetyStatus _safetyStatus = SafetyStatus.unshaded;
-  bool get _isInShadedArea => _safetyStatus == SafetyStatus.shaded;
-  bool _isFollowingLocation = true;
-  List<LatLng> _routePoints = [];
-  double? _groundAltitude;
-  double? _currentAltitude;
-  double _mockAltitudeOffset = 0.0;
-  String _currentTemp = '--°C';
-  int? _currentTempValue;
-  Timer? _weatherTimer;
-  Timer? _thresholdTimer;
-  Timer? _exposureTimer;
-  Timer? _zoneRefreshTimer;
-  Timer? _watchSyncTimer;
-  bool _isRefreshingServer = false;
+      _initialPosition; // Pre-set so the center FAB is always visible
+  StreamSubscription<Position>?
+  _positionStreamSubscription; // Active GPS stream listener
+  bool _isFollowingLocation =
+      true; // Whether the map camera auto-follows the user
+  List<LatLng> _routePoints =
+      []; // Points for the blue route line drawn on the map
+
+  // Safety status
+  SafetyStatus _safetyStatus =
+      SafetyStatus.unshaded; // Current shade/exposure state
+  bool get _isInShadedArea =>
+      _safetyStatus == SafetyStatus.shaded; // Convenience getter
+
+  // Altitude (used to detect rooftop exposure)
+  double?
+  _groundAltitude; // First GPS altitude reading — used as the ground reference
+  double? _currentAltitude; // Latest GPS altitude (with mock offset applied)
+  double _mockAltitudeOffset =
+      0.0; // Dev tool: simulates being at a higher elevation
+
+  // Weather
+  String _currentTemp = '--°C'; // Displayed temperature string
+  int? _currentTempValue; // Numeric temperature used in risk calculations
+
+  // Background timers
+  Timer? _weatherTimer; // Fetches weather every 15 minutes
+  Timer?
+  _thresholdTimer; // Refreshes adaptive safe-exposure limit every 1 minute
+  Timer? _exposureTimer; // Ticks every second while user is exposed to the sun
+  Timer? _zoneRefreshTimer; // Re-applies time-based zone filters every 1 minute
+  Timer?
+  _watchSyncTimer; // Syncs heat status to the companion watch every second
+  bool _isRefreshingServer =
+      false; // Guard flag to prevent overlapping server refreshes
 
   // Compass tracking
   double _heading = 0.0;
   StreamSubscription<CompassEvent>? _compassSubscription;
 
-  // Emergency escalation tracking
+  // --- Emergency Escalation Tracking ---
   int?
-  _criticalRiskStartExposureSeconds; // exposure counter snapshot when critical began
-  LatLng? _criticalRiskStartLocation; // location snapshot when critical began
-  bool _emergencyEscalationTriggered = false;
-  // Escalates after this many extra seconds in critical risk at the same spot
-  // (10 minutes = 600 seconds beyond the safe-exposure limit)
-  static const int _escalationThresholdSeconds = 10 * 60;
-  // Movement threshold in metres — less than this counts as "not moved"
-  static const double _movementThresholdMetres = 10.0;
-  bool _debugMode = false;
-  StreamSubscription<void>? _zoneUpdatesSubscription;
-  int _exposureSeconds = 0;
-  int? _maxTempDuringExposure;
-  double _maxRiskDuringExposure = 0.0;
-  bool _zonesReady = false;
-  int _safeExposureSeconds = 15 * 60;
-  List<ZonePolygon> _zones = [];
-  List<ZonePolygon> _activeZones = [];
-  List<Polygon> _polygons = [];
-  static const int _adaptiveUserId = 0;
+  _criticalRiskStartExposureSeconds; // Snapshot of _exposureSeconds when critical risk first began
+  LatLng?
+  _criticalRiskStartLocation; // Location snapshot when critical risk first began
+  bool _emergencyEscalationTriggered =
+      false; // Prevents the dialog from firing more than once per incident
+
+  // Fires after this many seconds of continuous critical risk without movement
+  static const int _escalationThresholdSeconds = 10 * 60; // 10 minutes
+
+  // User must move more than this distance (in metres) to reset the escalation clock
+  static const double _movementThresholdMetres = 5.0;
+
+
+  StreamSubscription<void>?
+  _zoneUpdatesSubscription; // Listens to ZoneDbService DB change events
+
+  // Exposure tracking
+  int _exposureSeconds =
+      0; // Running total of seconds in the sun (resets when shaded)
+  int?
+  _maxTempDuringExposure; // Peak temperature recorded during this exposure session
+  double _maxRiskDuringExposure =
+      0.0; // Peak risk ratio recorded during this exposure session
+
+  // Zone data
+  bool _zonesReady = false; // True once zones have been loaded from the DB
+  int _safeExposureSeconds =
+      15 * 60; // Adaptive limit from backend; defaults to 15 min
+  List<ZonePolygon> _zones = []; // All zones loaded from the local DB
+  List<ZonePolygon> _activeZones =
+      []; // Zones currently active based on time of day
+  List<Polygon> _polygons =
+      []; // Flutter map polygon shapes rendered on the map
+
+  static const int _adaptiveUserId =
+      0; // User ID sent to backend for personalized thresholds
 
   // Alharam Zone functionality
   bool _isInAlharam = false;
@@ -119,42 +163,55 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Register callbacks so Settings screen can trigger actions on this screen
+    // without holding a direct reference to it
     ServerConnectionNotifier.setRefreshAction(_refreshServerConnection);
     ServerConnectionNotifier.setTurboAction(_applyTurboStep);
     ServerConnectionNotifier.setAltitudeAction((offset) {
       if (!mounted) return;
       setState(() {
-        _mockAltitudeOffset = offset;
-        _recalculateAltitudeSafeZone();
+        _mockAltitudeOffset =
+            offset; // Apply simulated altitude offset from dev tools
+        _recalculateAltitudeSafeZone(); // Recompute polygon coloring for the new altitude
       });
     });
+
+    // Reload zones whenever the local DB is updated (e.g. after a server sync)
     _zoneUpdatesSubscription = ZoneDbService.updates.listen((_) {
       _loadZones();
     });
+
+    // Re-apply time-based zone filters every minute (zones activate/deactivate by time of day)
     _zoneRefreshTimer = Timer.periodic(
       const Duration(minutes: 1),
       (_) => _applyActiveZones(),
     );
-    // Sync heat status to watch every second
+
+    // Push live heat status to the companion watch every second
     _watchSyncTimer = Timer.periodic(
       const Duration(seconds: 1),
       (_) => _syncHeatStatusToWatch(),
     );
-    _loadZones();
-    _requestLocationPermission();
-    _fetchWeather();
-    _refreshAdaptiveThreshold();
+
+    _loadZones(); // Initial zone load from local DB
+    _requestLocationPermission(); // Ask for GPS permission and start tracking
+    _fetchWeather(); // Fetch current temperature immediately
+    _refreshAdaptiveThreshold(); // Fetch personalized safe-exposure limit immediately
+
+    // Refresh the adaptive threshold every minute (temp or shade status may change)
     _thresholdTimer = Timer.periodic(
       const Duration(minutes: 1),
       (_) => _refreshAdaptiveThreshold(),
     );
-    // Update weather every 15 minutes
+
+    // Re-fetch weather from the backend every 15 minutes
     _weatherTimer = Timer.periodic(
       const Duration(minutes: 15),
       (_) => _fetchWeather(),
     );
 
-    // Compass events
+    // Subscribe to device compass events to rotate the direction cone on the map
     _compassSubscription = FlutterCompass.events?.listen((event) {
       if (mounted) {
         setState(() {
@@ -194,20 +251,22 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
-  /// Loads heat zones from the local database and ensures initial seed data is present.
+  /// Loads heat zones from the local DB.
+  /// Seeds default data if the DB is empty, then syncs from the backend server.
   Future<void> _loadZones() async {
-    await _zoneDbService.ensureSeedData();
-    await _zoneDbService.syncFromBackend();
+    await _zoneDbService
+        .ensureSeedData(); // Insert default zones if the DB is empty
+    await _zoneDbService.syncFromBackend(); // Pull latest zones from the server
     final zones = await _zoneDbService.getZones();
 
     if (!mounted) return;
 
     setState(() {
       _zones = zones;
-      _zonesReady = true;
+      _zonesReady = true; // Mark zones as ready so safety checks can run
     });
 
-    _applyActiveZones();
+    _applyActiveZones(); // Immediately filter to only time-appropriate zones
   }
 
   Future<void> _refreshServerConnection() async {
@@ -257,8 +316,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
-  /// Filters the loaded zones based on current time (finds active zones)
-  /// and updates the map polygons and geofenced heat zones.
+  /// Filters all loaded zones to only those active at the current time,
+  /// builds map polygon shapes, and updates the geofencing heat zone list.
   void _applyActiveZones() {
     if (!mounted) return;
 
@@ -269,10 +328,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
         ? (_groundAltitude! + _mockAltitudeOffset)
         : null;
 
+    // Keep only zones whose active time window includes the current time
     final activeZones = _zones
         .where((zone) => zone.isActiveAt(now))
         .toList(growable: false);
 
+    // Convert each active zone to a map polygon.
+    // Shaded zones where the user is above the building height are rendered orange (roof exposure)
     final activePolygons = activeZones
         .map((zone) {
           if (zone.type == ZoneType.shaded &&
@@ -280,6 +342,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
               _groundAltitude != null) {
             final relativeHeight = currentAlt - _groundAltitude!;
             if (relativeHeight >= zone.buildingHeight) {
+              // User is on or above the rooftop — shade is no longer effective
               return Polygon(
                 points: zone.points,
                 // ignore: deprecated_member_use
@@ -289,7 +352,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
               );
             }
           }
-          return zone.toPolygon();
+          return zone
+              .toPolygon(); // Normal shaded (green) or unshaded (red) polygon
         })
         .toList(growable: false);
 
@@ -298,6 +362,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
       _polygons = activePolygons;
     });
 
+    // Feed only unshaded zone centroids to the geofence service as heat alert triggers
     _geofenceService.setHeatZones(
       activeZones
           .where((zone) => zone.type == ZoneType.unshaded)
@@ -305,14 +370,15 @@ class _MonitorScreenState extends State<MonitorScreen> {
           .toList(),
     );
 
-    _checkInitialLocation();
+    _checkInitialLocation(); // Re-evaluate safety status with the new active zones
   }
 
-  /// Fetches effective weather from the backend so zone deltas are applied server-side.
+  /// Fetches real temperature from the backend (with zone heat-delta applied server-side).
+  /// Also refreshes the daylight window and adaptive exposure threshold.
   Future<void> _fetchWeather() async {
     try {
       final loc = _currentLocation ?? _initialPosition;
-      await _refreshDaylightWindow(loc);
+      await _refreshDaylightWindow(loc); // Update sunrise/sunset window first
       final weather = await BackendApiService.fetchEffectiveWeather(
         location: loc,
       );
@@ -322,15 +388,18 @@ class _MonitorScreenState extends State<MonitorScreen> {
         _currentTempValue = weather.effectiveTempC.round();
         _currentTemp = '$_currentTempValue°C';
       });
-      await _refreshAdaptiveThreshold();
+      await _refreshAdaptiveThreshold(); // Recalculate safe exposure limit for the new temp
     } catch (e) {
       debugPrint('Error fetching weather: $e');
     }
   }
 
+  /// Asks the backend for a personalized safe exposure limit based on
+  /// the current user, temperature, and whether they are in shade.
+  /// The backend uses past incident data to adapt the threshold over time.
   Future<void> _refreshAdaptiveThreshold() async {
     if (_currentTempValue == null) {
-      return;
+      return; // Can't calculate without a temperature reading
     }
 
     try {
@@ -342,15 +411,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
       if (!mounted) return;
 
       setState(() {
-        _safeExposureSeconds = threshold.safeExposureSeconds;
+        _safeExposureSeconds =
+            threshold.safeExposureSeconds; // Update dynamic limit
       });
     } catch (e) {
       debugPrint('Error fetching adaptive threshold: $e');
     }
   }
 
-  /// Evaluates whether the user's initial location is within any active shaded zone
-  /// and updates the exposure tracker accordingly.
+  /// Returns true if the current time falls outside the backend-provided daylight window.
+  /// When true, all heat exposure features are disabled and the UI shows "Nighttime".
   bool get _isNightTime {
     final nowUtc = Provider.of<TimeProvider>(
       context,
@@ -492,36 +562,49 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
-  /// Calculates a continuous heat risk ratio (0.0 to 1.0) based on current temperature
-  /// and duration of continuous sun exposure.
+  /// Calculates a continuous heat risk ratio from 0.0 (safe) to 1.0 (critical).
+  ///
+  /// Temperature determines how fast the risk meter rises:
+  ///   > 35°C  → critical at 25 min
+  ///   30–35°C → critical at 30 min
+  ///   25–30°C → critical at 35 min
+  ///   ≤ 25°C  → critical at 40 min
+  ///
+  /// Math: expRisk = (seconds / safeLimit).clamp(0, 0.8)
+  /// Critical (0.66) is hit when seconds = 0.825 × safeLimit
+  /// → safeLimit = targetCriticalSeconds / 0.825
   double _calculateRiskRatio() {
-    if (_isNightTime) return 0.0;
+    if (_isNightTime) return 0.0; // No risk at night — heat monitoring is disabled
 
+    final int temp = _currentTempValue ?? 30; // Default to 30°C if not yet fetched
+
+    // Temperature-tiered safe limit.
+    // Calibrated so expRisk (capped at 0.8) crosses 0.66 (critical) at the target time.
+    final int tempBasedLimit;
+    if (temp > 35) {
+      tempBasedLimit = 1818; // > 35°C  → critical at 25 min
+    } else if (temp > 30) {
+      tempBasedLimit = 2182; // 30–35°C → critical at 30 min
+    } else if (temp > 25) {
+      tempBasedLimit = 2545; // 25–30°C → critical at 35 min
+    } else {
+      tempBasedLimit = 2909; // ≤ 25°C  → critical at 40 min
+    }
+
+    // Primary driver: exposure ratio capped at 0.8
+    final double expRisk = (_exposureSeconds / tempBasedLimit).clamp(0.0, 0.8);
+
+    // Minor time-of-day bonus: peaks at solar noon (+0.02 max)
+    // Small enough that it doesn't meaningfully shift the temperature thresholds above
     final now = Provider.of<TimeProvider>(context, listen: false).now;
     final minuteOfDay = now.hour * 60 + now.minute;
-    double timeFactor = 0.7;
-
+    double timeBonus = 0.0;
     if (minuteOfDay >= 360 && minuteOfDay <= 1080) {
       final distanceFromNoon = (minuteOfDay - 720).abs() / 360.0;
-      final middayRisk = (1.0 - distanceFromNoon).clamp(0.0, 1.0);
-      timeFactor = 0.7 + (middayRisk * 0.6);
+      timeBonus = (1.0 - distanceFromNoon).clamp(0.0, 1.0) * 0.02;
     }
 
-    // Exposure is the primary risk driver.
-    // At safeExposureSeconds the bar hits 0.8 (alert zone), regardless of temp.
-    double expRisk = (_exposureSeconds / _safeExposureSeconds).clamp(0.0, 0.8);
-
-    double tempBonus = 0.0;
-    if (_currentTempValue != null) {
-      // Temp 30°C → 50°C adds up to 0.2 bonus on top of exposure
-      tempBonus = ((_currentTempValue! - 30) / 20).clamp(0.0, 0.2);
-    }
-
-    // timeFactor used additively (not as multiplier) so it can't reduce risk below expRisk
-    final double timeBonus =
-        (timeFactor - 0.7) * 0.1; // 0.0 at off-peak, +0.06 at noon
-
-    return (expRisk + tempBonus + timeBonus).clamp(0.0, 1.0);
+    return (expRisk + timeBonus).clamp(0.0, 1.0);
   }
 
   Future<void> _logExposureIncident({
@@ -732,27 +815,29 @@ class _MonitorScreenState extends State<MonitorScreen> {
     }
   }
 
-  /// Listens to the device's location stream to update the user's position on the map
-  /// and determine if they have moved into a shaded or unshaded area.
+  /// Listens to the device GPS stream and updates the user's position,
+  /// altitude, safety status, Alharam boundary, and route line on every fix.
   void _startLocationTracking() {
     _positionStreamSubscription =
         Geolocator.getPositionStream(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.high,
-            distanceFilter: 5,
+            distanceFilter:
+                5, // Only emit updates when user moves at least 5 metres
           ),
         ).listen((Position position) {
           if (!mounted) return;
           final newLoc = LatLng(position.latitude, position.longitude);
 
           _currentAltitude = position.altitude + _mockAltitudeOffset;
-          _groundAltitude ??= position.altitude;
+          _groundAltitude ??= position
+              .altitude; // Capture the first fix as the ground reference
 
           setState(() {
             _currentLocation = newLoc;
           });
 
-          // This recalculates polygons if altitude crossed a threshold
+          // Recalculate polygon colors if altitude crossed a building-height threshold
           _applyActiveZones();
 
           SafetyStatus status = _getSafetyStatusForPoint(newLoc);
@@ -763,16 +848,18 @@ class _MonitorScreenState extends State<MonitorScreen> {
             _isInAlharam = _isPointInPolygon(newLoc, _alharamZonePoints);
             _updateExposureTimer(_isInShadedArea);
             if (_isInShadedArea) {
-              _routePoints.clear();
+              _routePoints.clear(); // User reached shade — clear the route
             } else if (_routePoints.isNotEmpty) {
               final distanceToDestination = const Distance().distance(
                 newLoc,
                 _routePoints.last,
               );
               if (distanceToDestination < 10.0) {
-                _routePoints.clear();
+                _routePoints
+                    .clear(); // Close enough to destination — clear route
               } else {
-                _routePoints[0] = newLoc;
+                _routePoints[0] =
+                    newLoc; // Update the route start to the current position
               }
             }
           });
@@ -785,7 +872,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _applyActiveZones();
   }
 
-  /// Checks if the point is in a shaded zone AND safely below its building height
+  /// Determines the user's safety status for a given coordinate.
+  /// Checks each active shaded zone using point-in-polygon.
+  /// If inside a zone but altitude >= building height → exposedRoof.
+  /// If inside a zone at ground level → shaded.
+  /// Otherwise → unshaded.
   SafetyStatus _getSafetyStatusForPoint(LatLng point) {
     final currentAlt = (_groundAltitude != null && _currentAltitude != null)
         ? (_groundAltitude! + _mockAltitudeOffset)
@@ -829,13 +920,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
     return isInside;
   }
 
-  /// Applies a single turbo step: enables debug mode (if not already on) and
-  /// adds +5 minutes of simulated exposure. Exposed as a static callback so
-  /// the Settings screen can trigger it without direct widget access.
+  /// Adds +5 minutes of simulated exposure and enables debug mode.
+  /// Triggered from the Settings screen via the Turbo Mode developer tool.
   Future<void> _applyTurboStep() async {
     if (!mounted) return;
     setState(() {
-      _debugMode = true;
       _exposureSeconds += 300;
       final risk = _calculateRiskRatio();
       if (_currentTempValue != null) {
@@ -852,6 +941,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   @override
   void dispose() {
+    // Cancel all streams and timers to prevent memory leaks
     _positionStreamSubscription?.cancel();
     _zoneUpdatesSubscription?.cancel();
     _zoneRefreshTimer?.cancel();
@@ -862,6 +952,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _exposureTimer?.cancel();
     _compassSubscription?.cancel();
     _timeProvider?.removeListener(_onTimeChanged);
+    // Clear Settings callbacks so they don’t point to a disposed widget
     ServerConnectionNotifier.setRefreshAction(null);
     ServerConnectionNotifier.setTurboAction(null);
     ServerConnectionNotifier.setAltitudeAction(null);
@@ -2038,6 +2129,9 @@ class _EscalationDialogState extends State<_EscalationDialog> {
   }
 }
 
+/// A simple CustomPainter that draws a translucent blue direction cone
+/// on the user's map marker. The cone always points "up" (north) in canvas
+/// space — it is rotated externally by Transform.rotate using the compass heading.
 class _VisionConePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
