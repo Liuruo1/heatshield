@@ -1,0 +1,160 @@
+name: iOS + watchOS Unsigned Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # ── Add the HeatShieldWatch watchOS target to the Xcode project ──
+      # This uses a Ruby script to programmatically modify project.pbxproj,
+      # since we can't use the Xcode GUI in CI.
+      - name: Add watchOS target to Xcode project
+        run: |
+          gem install xcodeproj
+          ruby <<'RUBY'
+          require 'xcodeproj'
+
+          project_path = 'ios/Runner.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+
+          # Skip if target already exists
+          if project.targets.any? { |t| t.name == 'HeatShieldWatch' }
+            puts "HeatShieldWatch target already exists, skipping."
+            exit 0
+          end
+
+          # ── Create the watchOS app target ──
+          watch_target = project.new_target(
+            :application,
+            'HeatShieldWatch',
+            :watchos,
+            '10.0'  # watchOS deployment target
+          )
+          watch_target.build_configurations.each do |config|
+            config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.example.heatshield.watchkitapp'
+            config.build_settings['INFOPLIST_GENERATION_MODE'] = 'GeneratedFile'
+            config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
+            config.build_settings['INFOPLIST_KEY_WKCompanionAppBundleIdentifier'] = 'com.example.heatshield'
+            config.build_settings['INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp'] = 'NO'
+            config.build_settings['SWIFT_VERSION'] = '5.0'
+            config.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
+            config.build_settings['ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME'] = 'AccentColor'
+            config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+            config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+            config.build_settings['SDKROOT'] = 'watchos'
+            config.build_settings['TARGETED_DEVICE_FAMILY'] = '4'  # 4 = Apple Watch
+            config.build_settings['WATCHOS_DEPLOYMENT_TARGET'] = '10.0'
+            config.build_settings['SWIFT_EMIT_LOC_STRINGS'] = 'YES'
+            config.build_settings['PRODUCT_NAME'] = '$(TARGET_NAME)'
+            config.build_settings['MARKETING_VERSION'] = '1.0'
+            config.build_settings['CURRENT_PROJECT_VERSION'] = '1'
+          end
+
+          # ── Add source files ──
+          watch_group = project.main_group.new_group('HeatShieldWatch', 'HeatShieldWatch')
+
+          swift_files = [
+            'HeatShieldWatchApp.swift',
+            'HeatDashboardView.swift',
+            'HeatStatus.swift',
+            'PhoneConnectivityManager.swift',
+          ]
+
+          swift_files.each do |filename|
+            file_ref = watch_group.new_file("HeatShieldWatch/#{filename}")
+            watch_target.source_build_phase.add_file_reference(file_ref)
+          end
+
+          # ── Add Assets.xcassets ──
+          assets_ref = watch_group.new_file('HeatShieldWatch/Assets.xcassets')
+          watch_target.resources_build_phase.add_file_reference(assets_ref)
+
+          # ── Link WatchConnectivity.framework ──
+          wc_framework = project.frameworks_group.new_file('System/Library/Frameworks/WatchConnectivity.framework', :sdk_root)
+          watch_target.frameworks_build_phase.add_file_reference(wc_framework)
+
+          # ── Also link WatchConnectivity to the Runner (iOS) target ──
+          runner_target = project.targets.find { |t| t.name == 'Runner' }
+          if runner_target
+            runner_target.frameworks_build_phase.add_file_reference(wc_framework)
+          end
+
+          # ── Add watchOS app as a dependency of the Runner target ──
+          if runner_target
+            runner_target.add_dependency(watch_target)
+
+            # Embed the watch app in the iOS app
+            embed_phase = runner_target.new_copy_files_build_phase('Embed Watch Content')
+            embed_phase.dst_subfolder_spec = '16'  # Watch content destination
+            embed_phase.dst_path = '$(CONTENTS_FOLDER_PATH)/Watch'
+
+            build_file = embed_phase.add_file_reference(watch_target.product_reference)
+            build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
+          end
+
+          project.save
+          puts "✅ HeatShieldWatch target added successfully."
+          RUBY
+
+      # ── Build Flutter iOS app (includes the watch companion) ──
+      - name: Build iOS (No Signing)
+        run: flutter build ios --release --no-codesign
+
+      # ── Build the watchOS app separately ──
+      - name: Build watchOS app
+        run: |
+          cd ios
+          xcodebuild build \
+            -project Runner.xcodeproj \
+            -target HeatShieldWatch \
+            -configuration Release \
+            -sdk watchos \
+            -destination 'generic/platform=watchOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
+
+      # ── Package IPA with Watch App embedded inside Runner.app/Watch/ ──
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          # 1. Copy the main iPhone app
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          
+          # 2. Embed the watchOS app inside Runner.app/Watch/
+          mkdir -p Payload/Runner.app/Watch
+          cp -R ios/build/Build/Products/Release-watchos/HeatShieldWatch.app Payload/Runner.app/Watch/
+          
+          # 3. Zip into IPA preserving symlinks
+          zip -r -y ios-app-with-watch-unsigned.ipa Payload
+
+      - name: Upload IPA (iOS + Apple Watch)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-with-watch-unsigned
+          path: ios-app-with-watch-unsigned.ipa
+
+      - name: Upload standalone watchOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchos-app
+          path: ios/build/Build/Products/Release-watchos/HeatShieldWatch.app
+
