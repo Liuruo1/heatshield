@@ -1,16 +1,14 @@
-name: iOS + watchOS Unsigned IPA
+name: iOS Unsigned Build
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ] # Runs every time you push to the main branch
+  workflow_dispatch:   # Allows you to run it manually from the GitHub website
 
 jobs:
   build:
     runs-on: macos-latest
-    permissions:
-      contents: read
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,23 +17,24 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # You can specify a flutter version here if needed, e.g., version: '3.19.0'
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS app and watch companion (unsigned)
+      - name: Build iOS (No Signing)
         run: flutter build ios --release --no-codesign
 
-      - name: Package unsigned IPA
+      - name: Package IPA
         run: |
-          test -d build/ios/iphoneos/Runner.app/Watch/HeatShieldWatch.app
-          mkdir -p build/ios/ipa/Payload
-          cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
-          cd build/ios/ipa
-          zip -r -y ../heatshield-ios-watch-unsigned.ipa Payload
+          # Flutter produces a .app folder. To make it an .ipa for sideloading, 
+          # we must put it in a folder named 'Payload' and zip it.
+          mkdir -p Payload
+          mv build/ios/iphoneos/Runner.app Payload/
+          zip -r ios-app-unsigned.ipa Payload
 
-      - name: Upload unsigned artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: heatshield-ios-watch-unsigned-ipa
-          path: build/ios/heatshield-ios-watch-unsigned.ipa
+          name: unsigned-ipa
+          path: ios-app-unsigned.ipa
