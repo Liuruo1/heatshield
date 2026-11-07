@@ -21,6 +21,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Ensure Watch App Icon exists
+        run: |
+          mkdir -p ios/HeatShieldWatch/Assets.xcassets/AppIcon.appiconset
+          cp ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png ios/HeatShieldWatch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+
       # ── Add the HeatShieldWatch watchOS target to the Xcode project ──
       # This uses a Ruby script to programmatically modify project.pbxproj,
       # since we can't use the Xcode GUI in CI.
@@ -78,25 +83,16 @@ jobs:
           ]
 
           swift_files.each do |filename|
-            file_ref = watch_group.new_file("HeatShieldWatch/#{filename}")
+            file_ref = watch_group.new_file(filename)
             watch_target.source_build_phase.add_file_reference(file_ref)
           end
 
           # ── Add Assets.xcassets ──
-          assets_ref = watch_group.new_file('HeatShieldWatch/Assets.xcassets')
+          assets_ref = watch_group.new_file('Assets.xcassets')
           watch_target.resources_build_phase.add_file_reference(assets_ref)
 
-          # ── Link WatchConnectivity.framework ──
-          wc_framework = project.frameworks_group.new_file('System/Library/Frameworks/WatchConnectivity.framework', :sdk_root)
-          watch_target.frameworks_build_phase.add_file_reference(wc_framework)
-
-          # ── Also link WatchConnectivity to the Runner (iOS) target ──
-          runner_target = project.targets.find { |t| t.name == 'Runner' }
-          if runner_target
-            runner_target.frameworks_build_phase.add_file_reference(wc_framework)
-          end
-
           # ── Add watchOS app as a dependency of the Runner target ──
+          runner_target = project.targets.find { |t| t.name == 'Runner' }
           if runner_target
             runner_target.add_dependency(watch_target)
 
