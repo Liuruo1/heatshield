@@ -229,7 +229,7 @@
 			name = HeatShieldWatch;
 			productName = HeatShieldWatch;
 			productReference = A30000000000000000000006 /* HeatShieldWatch.app */;
-			productType = "com.apple.product-type.application";
+			productType = "com.apple.product-type.application.watchapp2";
 		};
 /* End PBXNativeTarget section */
 
