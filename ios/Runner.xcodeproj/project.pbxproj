@@ -102,6 +102,7 @@
 		A00000000000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000007 /* HeatShieldWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeatShieldWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000019 /* WatchConnectivityBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityBridge.swift; sourceTree = "<group>"; };
+		A0000000000000000000002A /* Extension-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Extension-Info.plist"; sourceTree = "<group>"; };
 		A0000000000000000000001B /* HeatShieldWatchExtension.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = HeatShieldWatchExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -166,6 +167,7 @@
 				A00000000000000000000004 /* WatchApp.swift */,
 				A00000000000000000000005 /* WatchStatusStore.swift */,
 				A00000000000000000000006 /* Assets.xcassets */,
+				A0000000000000000000002A /* Extension-Info.plist */,
 			);
 			path = Watch;
 			sourceTree = "<group>";
@@ -859,10 +861,8 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.watchkit";
-				INFOPLIST_KEY_NSExtension_NSExtensionAttributes_WKAppBundleIdentifier = com.example.heatshield.watchkitapp;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Watch/Extension-Info.plist;
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -881,10 +881,8 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.watchkit";
-				INFOPLIST_KEY_NSExtension_NSExtensionAttributes_WKAppBundleIdentifier = com.example.heatshield.watchkitapp;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Watch/Extension-Info.plist;
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -904,10 +902,8 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.watchkit";
-				INFOPLIST_KEY_NSExtension_NSExtensionAttributes_WKAppBundleIdentifier = com.example.heatshield.watchkitapp;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Watch/Extension-Info.plist;
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";

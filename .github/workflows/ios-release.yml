@@ -27,8 +27,11 @@ jobs:
 
       - name: Package IPA
         run: |
-          test -d build/ios/iphoneos/Runner.app/Watch/HeatShieldWatch.app
-          test -d build/ios/iphoneos/Runner.app/Watch/HeatShieldWatch.app/PlugIns/HeatShieldWatchExtension.appex
+          WATCH_APP=build/ios/iphoneos/Runner.app/Watch/HeatShieldWatch.app
+          WATCH_EXTENSION="$WATCH_APP/PlugIns/HeatShieldWatchExtension.appex"
+          test -d "$WATCH_APP"
+          test -d "$WATCH_EXTENSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$WATCH_EXTENSION/Info.plist")" = "com.apple.watchkit"
           mkdir -p Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
           ditto -c -k --sequesterRsrc --keepParent Payload ios-app-unsigned.ipa
