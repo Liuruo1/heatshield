@@ -127,24 +127,32 @@ jobs:
             -configuration Release \
             -sdk watchos \
             -destination 'generic/platform=watchOS' \
+            -derivedDataPath build \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=NO \
-            | tail -20
+            ONLY_ACTIVE_ARCH=NO
 
+      # ── Package IPA with Watch App embedded inside Runner.app/Watch/ ──
       - name: Package IPA
         run: |
           mkdir -p Payload
-          mv build/ios/iphoneos/Runner.app Payload/
-          zip -r ios-app-unsigned.ipa Payload
+          # 1. Copy the main iPhone app
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          
+          # 2. Embed the watchOS app inside Runner.app/Watch/
+          mkdir -p Payload/Runner.app/Watch
+          cp -R ios/build/Build/Products/Release-watchos/HeatShieldWatch.app Payload/Runner.app/Watch/
+          
+          # 3. Zip into IPA preserving symlinks
+          zip -r -y ios-app-with-watch-unsigned.ipa Payload
 
-      - name: Upload iOS App
+      - name: Upload IPA (iOS + Apple Watch)
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-ipa
-          path: ios-app-unsigned.ipa
+          name: ios-app-with-watch-unsigned
+          path: ios-app-with-watch-unsigned.ipa
 
-      - name: Upload watchOS App
+      - name: Upload standalone watchOS App
         uses: actions/upload-artifact@v4
         with:
           name: watchos-app
