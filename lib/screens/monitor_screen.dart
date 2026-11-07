@@ -224,7 +224,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// Syncs the current heat status to the watch via the companion service.
   Future<void> _syncHeatStatusToWatch() async {
     await WatchCompanionService.sendHeatStatus(
-      temp: _currentTempValue ?? 0,
+      temp: _currentTempValue,
       exposure: _exposureSeconds,
       risk: _calculateRiskRatio(),
       shaded: _isInShadedArea,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class WatchCompanionService {
@@ -59,22 +60,51 @@ class WatchCompanionService {
   }
 
   static Future<bool> sendHeatStatus({
-    required int temp,
+    required int? temp,
     required int exposure,
     required double risk,
     required bool shaded,
     int? safeExposureSeconds,
   }) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+
+    final method = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'updateWatchStatus'
+        : 'sendHeatStatusToWatch';
+    final arguments = {
+      'temp': temp,
+      'exposure': exposure,
+      'risk': risk,
+      'shaded': shaded,
+      'safeExposureSeconds': safeExposureSeconds,
+      'timestampMs': DateTime.now().millisecondsSinceEpoch,
+    };
+
     try {
-      final sent = await _channel.invokeMethod<bool>('sendHeatStatusToWatch', {
-        'temp': temp,
-        'exposure': exposure,
-        'risk': risk,
-        'shaded': shaded,
-        'safeExposureSeconds': safeExposureSeconds,
-      });
+      final sent = await _channel.invokeMethod<bool>(method, arguments);
       return sent ?? false;
-    } catch (e) {
+    } on PlatformException catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'heatshield',
+          context: ErrorDescription('while sending heat status to the watch'),
+        ),
+      );
+      return false;
+    } on MissingPluginException catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'heatshield',
+          context: ErrorDescription('while locating the watch companion channel'),
+        ),
+      );
       return false;
     }
   }
