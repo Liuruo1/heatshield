@@ -28,6 +28,7 @@ jobs:
       - name: Package IPA
         run: |
           test -d build/ios/iphoneos/Runner.app/Watch/HeatShieldWatch.app
+          test -d build/ios/iphoneos/Runner.app/Watch/HeatShieldWatch.app/PlugIns/HeatShieldWatchExtension.appex
           mkdir -p Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
           ditto -c -k --sequesterRsrc --keepParent Payload ios-app-unsigned.ipa

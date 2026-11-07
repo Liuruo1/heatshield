@@ -14,11 +14,12 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
-		A00000000000000000000009 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000004 /* WatchApp.swift */; };
-		A0000000000000000000000A /* WatchStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000005 /* WatchStatusStore.swift */; };
 		A0000000000000000000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000006 /* Assets.xcassets */; };
+		A0000000000000000000000A /* HeatShieldWatchExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* HeatShieldWatchExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A0000000000000000000000C /* HeatShieldWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A00000000000000000000007 /* HeatShieldWatch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A00000000000000000000018 /* WatchConnectivityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* WatchConnectivityBridge.swift */; };
+		A0000000000000000000001C /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000004 /* WatchApp.swift */; };
+		A0000000000000000000001D /* WatchStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000005 /* WatchStatusStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +36,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A00000000000000000000010;
 			remoteInfo = HeatShieldWatch;
+		};
+		A0000000000000000000001E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000025;
+			remoteInfo = HeatShieldWatchExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -60,6 +68,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A00000000000000000000020 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A0000000000000000000000A /* HeatShieldWatchExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -83,6 +102,7 @@
 		A00000000000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000007 /* HeatShieldWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeatShieldWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000019 /* WatchConnectivityBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityBridge.swift; sourceTree = "<group>"; };
+		A0000000000000000000001B /* HeatShieldWatchExtension.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = HeatShieldWatchExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +114,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A00000000000000000000017 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000021 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -148,6 +175,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				A00000000000000000000007 /* HeatShieldWatch.app */,
+				A0000000000000000000001B /* HeatShieldWatchExtension.appex */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 			);
 			name = Products;
@@ -215,18 +243,36 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A00000000000000000000011 /* Build configuration list for PBXNativeTarget "HeatShieldWatch" */;
 			buildPhases = (
-				A00000000000000000000016 /* Sources */,
 				A00000000000000000000017 /* Frameworks */,
 				A00000000000000000000015 /* Resources */,
+				A00000000000000000000020 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A00000000000000000000022 /* PBXTargetDependency */,
 			);
 			name = HeatShieldWatch;
 			productName = HeatShieldWatch;
 			productReference = A00000000000000000000007 /* HeatShieldWatch.app */;
 			productType = "com.apple.product-type.application.watchapp2";
+		};
+		A00000000000000000000025 /* HeatShieldWatchExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000026 /* Build configuration list for PBXNativeTarget "HeatShieldWatchExtension" */;
+			buildPhases = (
+				A00000000000000000000023 /* Sources */,
+				A00000000000000000000021 /* Frameworks */,
+				A00000000000000000000024 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HeatShieldWatchExtension;
+			productName = HeatShieldWatchExtension;
+			productReference = A0000000000000000000001B /* HeatShieldWatchExtension.appex */;
+			productType = "com.apple.product-type.watchkit2-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -249,6 +295,9 @@
 					A00000000000000000000010 = {
 						CreatedOnToolsVersion = 16.0;
 					};
+					A00000000000000000000025 = {
+						CreatedOnToolsVersion = 16.0;
+					};
 				};
 			};
 			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
@@ -266,6 +315,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				A00000000000000000000010 /* HeatShieldWatch */,
+				A00000000000000000000025 /* HeatShieldWatchExtension */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
 			);
 		};
@@ -295,6 +345,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A0000000000000000000000B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000024 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -353,12 +410,12 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A00000000000000000000016 /* Sources */ = {
+		A00000000000000000000023 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A00000000000000000000009 /* WatchApp.swift in Sources */,
-				A0000000000000000000000A /* WatchStatusStore.swift in Sources */,
+				A0000000000000000000001C /* WatchApp.swift in Sources */,
+				A0000000000000000000001D /* WatchStatusStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -374,6 +431,11 @@
 			isa = PBXTargetDependency;
 			target = A00000000000000000000010 /* HeatShieldWatch */;
 			targetProxy = A0000000000000000000000D /* PBXContainerItemProxy */;
+		};
+		A00000000000000000000022 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00000000000000000000025 /* HeatShieldWatchExtension */;
+			targetProxy = A0000000000000000000001E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -724,6 +786,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.example.heatshield;
+				INFOPLIST_KEY_WKWatchKitApp = YES;
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -745,6 +808,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.example.heatshield;
+				INFOPLIST_KEY_WKWatchKitApp = YES;
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -767,10 +831,88 @@
 				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.example.heatshield;
+				INFOPLIST_KEY_WKWatchKitApp = YES;
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Profile;
+		};
+		A00000000000000000000026 /* Build configuration list for PBXNativeTarget "HeatShieldWatchExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000027 /* Debug */,
+				A00000000000000000000028 /* Release */,
+				A00000000000000000000029 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000027 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.watchkit";
+				INFOPLIST_KEY_NSExtension_NSExtensionAttributes_WKAppBundleIdentifier = com.example.heatshield.watchkitapp;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		A00000000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.watchkit";
+				INFOPLIST_KEY_NSExtension_NSExtensionAttributes_WKAppBundleIdentifier = com.example.heatshield.watchkitapp;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		A00000000000000000000029 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HeatShield;
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.watchkit";
+				INFOPLIST_KEY_NSExtension_NSExtensionAttributes_WKAppBundleIdentifier = com.example.heatshield.watchkitapp;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.heatshield.watchkitapp.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "watchos watchsimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
